@@ -68,4 +68,4 @@ Run (root needed for hardware access; the library drops privileges afterwards): 
 8. Git
 Small commits: <type>: <summary> (e.g. fix: correct gpio mapping).
 Never commit wheels/, .venv/, secrets or .env files.
-Do not push without asking.
+Claude never commits or pushes, even when asked to run git commands for the user. Claude gives the commands (labelled Host) and the user runs them (D-008).

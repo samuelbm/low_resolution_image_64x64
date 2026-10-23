@@ -98,3 +98,17 @@ Keep the Desktop image and switch it to console mode: works, but wastes RAM/CPU 
 Write cloud-init files by hand after flashing: reliable, but not needed once Imager 2 wrote them correctly.
 
 Consequences: The snap rpi-imager 1.9.6 should be removed from the host (sudo snap remove rpi-imager). If the Zero's Python version ever differs from the Pi 4, the wheel must be rebuilt (D-003).
+
+D-008: Claude never commits or pushes
+
+Status: Accepted (2026-10-23)
+
+Context: CLAUDE.md said "Do not push without asking". On 2026-10-23 Claude committed and pushed the Pillow dependency (b2dc33f on poc) after the user asked why Claude could not run the host commands itself. The user wants to keep full control over what goes into git history and to GitHub.
+
+Decision: Claude never runs git commit or git push. Claude prepares the changes, says which files belong in the commit, and gives the commands labelled Host; the user runs them. Read-only git commands (status, log, diff) and branch creation stay allowed.
+
+Alternatives:
+
+Ask before each commit/push (the previous rule): left room for a quick "yes" or an ambiguous request to turn into a push.
+
+Consequences: Every commit and push is done by the user. Claude's replies end with the exact git commands when files changed.
