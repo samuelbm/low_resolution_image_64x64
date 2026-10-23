@@ -3,4 +3,6 @@ name = "low-resolution-image-64x64"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "pillow>=13.0.0",
+]
