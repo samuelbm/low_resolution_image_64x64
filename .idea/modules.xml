@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/image_resolution_analyzer.iml" filepath="$PROJECT_DIR$/.idea/image_resolution_analyzer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/low-resolution-image-64x64.iml" filepath="$PROJECT_DIR$/.idea/low-resolution-image-64x64.iml" />
     </modules>
   </component>
 </project>

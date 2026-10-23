@@ -5,7 +5,7 @@
 # Prerequisites
 *.d
 
-# Compiled Object files
+# Compiled Object source_files
 *.slo
 *.lo
 *.o
@@ -20,7 +20,7 @@
 *.dylib
 *.dll
 
-# Fortran module files
+# Fortran module source_files
 *.mod
 *.smod
 
@@ -55,10 +55,10 @@
 # AWS User-specific
 .idea/**/aws.xml
 
-# Generated files
+# Generated source_files
 .idea/**/contentModel.xml
 
-# Sensitive or high-churn files
+# Sensitive or high-churn source_files
 .idea/**/dataSources/
 .idea/**/dataSources.ids
 .idea/**/dataSources.local.xml
@@ -72,7 +72,7 @@
 .idea/**/libraries
 
 # Gradle and Maven with auto-import
-# When using Gradle or Maven with auto-import, you should exclude module files,
+# When using Gradle or Maven with auto-import, you should exclude module source_files,
 # since they will be recreated, and may cause churn.  Uncomment if using
 # auto-import.
 # .idea/artifacts
@@ -169,3 +169,12 @@ files/**/*.svg
 
 
 
+### Images and GIFs (never committed) ###
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
+*.tif
+*.tiff
