@@ -19,6 +19,7 @@ To do
  [~] Step 7: Save name and no overwrite. A text box above Save holds the name to save under, filled with the source file name when a file is selected. The _64x64bits suffix and the extension are added automatically, and the full target path is shown under the box. Several crops of one file can be saved by changing the name (e.g. pumpkin2). Save is blocked, with the reason shown, while the name is empty or invalid or the target file already exists: files are never overwritten (replaces step 6's overwrite question).
 
 Notes
+ scripts/sync_to_zero.sh (host): rsync of object_files/ to the Zero, keeping the folder structure.
  GIF results are not shown on the panel yet: the panel side needs the animation player (Iteration 2, to do).
 
 Iteration 2: Our own code on the matrix (mostly DONE)

@@ -52,10 +52,15 @@ in the uv-managed Python) and Pillow. Nothing of this runs on the Pis.
 2. Start the app and click a file name on the left.
 3. Move and resize the red square until the right pane looks good.
 4. Check the name in **Save as**, then click **Save** (or press Enter in the box).
-5. Copy the result to the Pi Zero 2W (images and GIFs are not in git):
+5. Copy the results to the Pi Zero 2W (images and GIFs are not in git). On
+   the host, from the repository root:
    ```
-   scp object_files/images/<name>_64x64bits.png admin@rgbmatrix.local:~/low_resolution_image_64x64/object_files/images/
+   scripts/sync_to_zero.sh
    ```
+   It copies only new or changed files from `object_files/` into
+   `~/low_resolution_image_64x64/object_files/` on the Zero, keeping the
+   folders. `scripts/sync_to_zero.sh --dry-run` shows what it would copy;
+   `--delete` also removes on the Zero what you deleted on the host.
 6. Show it on the panel (Pi Zero 2W):
    ```
    sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/show_image.py object_files/images/<name>_64x64bits.png
