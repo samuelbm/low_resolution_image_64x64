@@ -21,4 +21,6 @@ cd "$(dirname "$0")/.."
 
 # Trailing slashes: copy the contents of object_files/ into object_files/ on
 # the Zero, instead of nesting a second object_files/ inside it.
-rsync -av "$@" object_files/ "$ZERO:$REMOTE_DIR/object_files/"
+# selection.txt is edited on the Zero only (D-014): never send a host copy,
+# and --delete leaves the Zero's copy alone because it is excluded.
+rsync -av --exclude selection.txt "$@" object_files/ "$ZERO:$REMOTE_DIR/object_files/"

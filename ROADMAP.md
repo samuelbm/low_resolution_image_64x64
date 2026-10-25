@@ -1,5 +1,23 @@
 Living plan. Updated at the end of every work session. Status: [ ] to do, [~] in progress, [x] done.
 
+Iteration 4: Show the selection at boot (Pi Zero 2W)
+
+Goal: when the Zero powers on, the panel shows what object_files/selection.txt names, with no SSH needed. Changing the selection over SSH switches the panel within about a second. A systemd service starts the player at boot and restarts it after a crash, unless stopped (D-013, D-014). Built one step at a time; after each step Claude stops, the user reviews and commits (D-008).
+
+In progress
+ [ ] Step 1 (next).
+
+To do
+ [ ] Step 1: rgb_led_matrix/play_selection.py reads object_files/selection.txt (first line that is not empty or a # comment; path relative to the repo root, e.g. object_files/gifs/floating_eye_64x64bits.gif) and shows a PNG statically or plays a GIF, reusing show_image.py / show_gif.py. Missing, empty or bad selection (not 64x64, unknown type, outside the repo): clear the panel, print why, keep waiting; never crash.
+ [ ] Step 2: Switch on change. About once a second the player checks selection.txt; when it changes it loads the new file and switches without restarting. Decide here how it keeps reading files after the library drops root (drop_privileges = False for this player, or readable content folder).
+ [ ] Step 3: Test by hand on the Zero: sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/play_selection.py, edit selection.txt over SSH, watch the panel switch.
+ [ ] Step 4: systemd service. systemd/rgbmatrix-display.service in the repo (runs as root, Restart=always, no network needed, Python cache kept out of the repo). Install with sudo cp + systemctl daemon-reload + systemctl enable --now. README section "Display service" with the everyday commands (status, journalctl, stop/start, disable). Note: while the service runs the panel is taken; stop it before running other scripts by hand.
+ [ ] Step 5: Protect the SD card against power cuts, since the device will be unplugged without shutdown. Options: read-only overlay (but then selection.txt and new images are lost at reboot unless object_files/ sits on a separate writable partition), or a shutdown button on GPIO3 (recheck it is free with adafruit-hat-pwm). Decide, then record a DECISIONS entry.
+
+Notes
+ selection.txt lives only on the Zero (git-ignored, skipped by scripts/sync_to_zero.sh). Edit it over SSH, e.g. nano ~/low_resolution_image_64x64/object_files/selection.txt.
+ On another Wi-Fi network the Zero still plays the selection, but SSH needs that network configured on the Zero.
+
 Iteration 3: Cutter app (host): crop and preview images/GIFs for 64x64
 
 Goal: a desktop app in cutter_project/ to pick a source image or GIF, choose a square crop with a red square, preview the 64x64 result and save it to object_files/ (see README, "Cutter" section). Built one step at a time; after each step Claude stops, the user reviews and commits (D-008).

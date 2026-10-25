@@ -170,3 +170,34 @@ PySide6/PyQt6: nicer widgets, but a large new dependency; it would also land in 
 A web page (local server + browser): more moving parts for a one-person tool.
 
 Consequences: No new dependency (tkinter is included in the uv-managed Python 3.13 on the host, checked: Tk 9.0). GIF playback is done by hand (Pillow frames + tkinter timer).
+
+D-013: Start the display at boot with a systemd service, not Docker
+
+Status: Accepted (2026-10-25)
+
+Context: The Zero should show a chosen image or GIF as soon as it powers on, also away from home, and restart the player if it crashes unless it was stopped on purpose. Docker was considered for this.
+
+Decision: A systemd service (systemd/rgbmatrix-display.service in the repo, installed in /etc/systemd/system/) runs rgb_led_matrix/play_selection.py with the existing ~/rgbmatrix/.venv at boot, as root, with Restart=always. systemctl stop stops it until the next start or boot; systemctl disable keeps it from starting at boot.
+
+Alternatives:
+
+Docker with --restart unless-stopped: same behaviour, but adds the Docker daemon (disk and RAM on a 512 MB Zero), needs --privileged for GPIO and /dev/mem, and an image built on the Pi 4 and copied over. Worth it only to rebuild the whole setup with one command or to isolate several services.
+Cron @reboot: no restart after a crash, no stop/status commands.
+
+Consequences: No new software on the Zero. While the service runs the panel is taken: stop it before running other display scripts by hand.
+
+D-014: The selection is a plain text file on the Zero only
+
+Status: Accepted (2026-10-25)
+
+Context: The player needs to know what to show, and the user wants to change it remotely over SSH/Wi-Fi.
+
+Decision: ~/low_resolution_image_64x64/object_files/selection.txt, plain text. The first line that is not empty or a # comment is the path to show, relative to the repo root, the same path typed with show_image.py / show_gif.py (e.g. object_files/gifs/floating_eye_64x64bits.gif). It lives only on the Zero: git-ignored, skipped by scripts/sync_to_zero.sh (also with --delete), edited over SSH. The player refuses paths outside the repo.
+
+Alternatives:
+
+A .sh file: it would be executed as root, so anything written in it would run; a text file is data that the player checks.
+Path relative to object_files/ (gifs/...): shorter, but differs from the paths typed on the command line.
+Editing on the host and syncing: the host copy would overwrite edits made on the Zero.
+
+Consequences: The selection is not backed up by git. Later it can grow into a playlist (one path per line) or take options without changing the file name.
