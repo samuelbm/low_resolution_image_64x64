@@ -4,15 +4,23 @@ Iteration 4: Show the selection at boot (Pi Zero 2W)
 
 Goal: when the Zero powers on, the panel shows what object_files/selection.txt names, with no SSH needed. Changing the selection over SSH switches the panel within about a second. A systemd service starts the player at boot and restarts it after a crash, unless stopped (D-013, D-014). Built one step at a time; after each step Claude stops, the user reviews and commits (D-008).
 
+Who does what
+ systemd needs no programming, only one small text file (the .service file) saying what to start. The real code is the player.
+ Claude writes (host, in the repo): the player rgb_led_matrix/play_selection.py (steps 1-2) and the unit file systemd/rgbmatrix-display.service (step 4a).
+ The user, after review and commit: git pull on the Zero, tests by hand (step 3), installs the service with the sudo commands Claude gives and explains (step 4b).
+ Step 5 (SD card protection) is decided together first.
+ Order: Claude writes -> user reviews and commits -> git pull on the Zero -> test by hand -> install the service.
+
 In progress
  [ ] Step 1 (next).
 
 To do
- [ ] Step 1: rgb_led_matrix/play_selection.py reads object_files/selection.txt (first line that is not empty or a # comment; path relative to the repo root, e.g. object_files/gifs/floating_eye_64x64bits.gif) and shows a PNG statically or plays a GIF, reusing show_image.py / show_gif.py. Missing, empty or bad selection (not 64x64, unknown type, outside the repo): clear the panel, print why, keep waiting; never crash.
- [ ] Step 2: Switch on change. About once a second the player checks selection.txt; when it changes it loads the new file and switches without restarting. Decide here how it keeps reading files after the library drops root (drop_privileges = False for this player, or readable content folder).
- [ ] Step 3: Test by hand on the Zero: sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/play_selection.py, edit selection.txt over SSH, watch the panel switch.
- [ ] Step 4: systemd service. systemd/rgbmatrix-display.service in the repo (runs as root, Restart=always, no network needed, Python cache kept out of the repo). Install with sudo cp + systemctl daemon-reload + systemctl enable --now. README section "Display service" with the everyday commands (status, journalctl, stop/start, disable). Note: while the service runs the panel is taken; stop it before running other scripts by hand.
- [ ] Step 5: Protect the SD card against power cuts, since the device will be unplugged without shutdown. Options: read-only overlay (but then selection.txt and new images are lost at reboot unless object_files/ sits on a separate writable partition), or a shutdown button on GPIO3 (recheck it is free with adafruit-hat-pwm). Decide, then record a DECISIONS entry.
+ [ ] Step 1 (Claude): rgb_led_matrix/play_selection.py reads object_files/selection.txt (first line that is not empty or a # comment; path relative to the repo root, e.g. object_files/gifs/floating_eye_64x64bits.gif) and shows a PNG statically or plays a GIF, reusing show_image.py / show_gif.py. Missing, empty or bad selection (not 64x64, unknown type, outside the repo): clear the panel, print why, keep waiting; never crash.
+ [ ] Step 2 (Claude): Switch on change. About once a second the player checks selection.txt; when it changes it loads the new file and switches without restarting. Decide here how it keeps reading files after the library drops root (drop_privileges = False for this player, or readable content folder).
+ [ ] Step 3 (user, Zero): Test by hand: sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/play_selection.py, edit selection.txt over SSH, watch the panel switch.
+ [ ] Step 4a (Claude): systemd/rgbmatrix-display.service in the repo (runs as root, Restart=always, no network needed, Python cache kept out of the repo).
+ [ ] Step 4b (user, Zero): install it with sudo cp to /etc/systemd/system/ + systemctl daemon-reload + systemctl enable --now. README section "Display service" with the everyday commands (status, journalctl, stop/start, disable). Note: while the service runs the panel is taken; stop it before running other scripts by hand.
+ [ ] Step 5 (together): Protect the SD card against power cuts, since the device will be unplugged without shutdown. Options: read-only overlay (but then selection.txt and new images are lost at reboot unless object_files/ sits on a separate writable partition), or a shutdown button on GPIO3 (recheck it is free with adafruit-hat-pwm). Decide, then record a DECISIONS entry.
 
 Notes
  selection.txt lives only on the Zero (git-ignored, skipped by scripts/sync_to_zero.sh). Edit it over SSH, e.g. nano ~/low_resolution_image_64x64/object_files/selection.txt.
