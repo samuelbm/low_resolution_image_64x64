@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image, ImageSequence
-from resize_to_64x64 import SIZE, to_rgb_on_black
+from resize_to_64x64 import SIZE, SUFFIX, to_rgb_on_black
 
 # Browsers show GIF frames with a delay under 20 ms (often written as 0) at
 # 100 ms; doing the same keeps such GIFs at the speed people know them by.
@@ -27,6 +27,8 @@ class Media:
     path: Path
     frames: list[Image.Image]  # RGBA, full source size
     durations_ms: list[int]  # one per frame
+    # GIF loop count as stored in the file (0 = forever); None = play once.
+    loop: int | None = None
 
     @property
     def size(self) -> tuple[int, int]:
@@ -50,13 +52,14 @@ def load_media(path: Path) -> Media:
     frames = []
     durations = []
     with Image.open(path) as img:
+        loop = img.info.get("loop")
         # Pillow hands out each GIF frame already composed over the previous
         # ones, so every frame is a complete picture.
         for frame in ImageSequence.Iterator(img):
             frames.append(frame.convert("RGBA"))
             duration = frame.info.get("duration", DEFAULT_FRAME_MS)
             durations.append(DEFAULT_FRAME_MS if duration < MIN_FRAME_MS else duration)
-    return Media(path, frames, durations)
+    return Media(path, frames, durations, loop)
 
 
 def fit_size(size: tuple[int, int], box: tuple[int, int]) -> tuple[int, int]:
@@ -117,3 +120,32 @@ def resize_square(
     new_left = anchor_x - new_side if dx < 0 else anchor_x
     new_top = anchor_y - new_side if dy < 0 else anchor_y
     return new_left, new_top, new_side
+
+
+def output_path(source: Path, object_dir: Path) -> Path:
+    """Where the result of `source` is saved: same name plus SUFFIX.
+
+    GIFs go to object_dir/gifs as .gif, everything else to object_dir/images
+    as .png (lossless, whatever the source format was).
+    """
+    if source.suffix.lower() in GIF_SUFFIXES:
+        return object_dir / "gifs" / f"{source.stem}{SUFFIX}.gif"
+    return object_dir / "images" / f"{source.stem}{SUFFIX}.png"
+
+
+def save_result(media: Media, square: Square, path: Path) -> None:
+    """Write the 64x64 result of every frame, cropped with the same square."""
+    frames = [crop_result(frame, square) for frame in media.frames]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.suffix.lower() != ".gif":
+        frames[0].save(path)
+        return
+    # Without a loop entry a GIF plays once, so only write it if the source had one.
+    loop = {} if media.loop is None else {"loop": media.loop}
+    frames[0].save(
+        path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=media.durations_ms,
+        **loop,
+    )

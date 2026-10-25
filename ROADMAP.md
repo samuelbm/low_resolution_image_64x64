@@ -7,18 +7,17 @@ Goal: a desktop app in cutter_project/ to pick a source image or GIF, choose a s
 Technical frame: tkinter (stdlib, already in the uv-managed Python 3.13) + Pillow, no new dependency. Host only, nothing goes to the Pis. Entry point: uv run cutter_project/cutter_app.py. Crop and resize code shared with cutter_project/resize_to_64x64.py (LANCZOS, same _64x64bits suffix).
 
 In progress
- [~] Step 5: written (cutter_app.py + media.py), waiting for user review and commit.
+ [~] Step 6: written (cutter_app.py + media.py), waiting for user review and commit.
 
 To do
  [x] Step 1: Empty app. A window opens with three panes (left: file lists, centre: source, right: result) and a Save button; nothing works yet. Closes cleanly.
  [x] Step 2: Browse and view. The left pane lists source_files/images/ and source_files/gifs/ in two separate lists. Clicking a name shows the file in the centre pane, scaled to fit; GIFs play with their own frame timing.
  [x] Step 3: Fixed square and result. A red square of 64x64 source pixels sits in the centre of the image/GIF (smaller if the image is smaller). The right pane shows the crop scaled to 64x64 and enlarged with visible pixels (GIFs play). The square cannot be moved yet.
  [x] Step 4: Drag. Click inside the square and drag to move it; it stays 64x64 source pixels and cannot leave the image. The right pane follows live.
- [~] Step 5: Resize. Drag a corner to make the square bigger or smaller; it always stays a square, the opposite corner stays fixed, it cannot leave the image, minimum size 8 source pixels. The right pane follows live.
- [ ] Step 6: Save. The Save button writes <name>_64x64bits.png to object_files/images/ or <name>_64x64bits.gif to object_files/gifs/ (all frames cropped the same way, frame durations and looping kept). Shows where it was saved.
+ [x] Step 5: Resize. Drag a corner to make the square bigger or smaller; it always stays a square, the opposite corner stays fixed, it cannot leave the image, minimum size 8 source pixels. The right pane follows live.
+ [~] Step 6: Save. The Save button writes <name>_64x64bits.png to object_files/images/ or <name>_64x64bits.gif to object_files/gifs/ (all frames cropped the same way, frame durations and looping kept). Shows where it was saved.
 
 Notes
- The Save button is drawn in step 1 but only works in step 6.
  GIF results are not shown on the panel yet: the panel side needs the animation player (Iteration 2, to do).
 
 Iteration 2: Our own code on the matrix (mostly DONE)

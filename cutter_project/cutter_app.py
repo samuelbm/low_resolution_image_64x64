@@ -6,7 +6,7 @@ See README.md, "Cutter" section, and ROADMAP.md Iteration 3 for the plan.
 
 import tkinter as tk
 from pathlib import Path
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from media import (
     CORNER_DIRECTIONS,
@@ -20,12 +20,16 @@ from media import (
     list_files,
     load_media,
     move_square,
+    output_path,
     resize_square,
+    save_result,
 )
 from PIL import Image, ImageTk
 
 TITLE = "Cutter 64x64"
-SOURCE_DIR = Path(__file__).resolve().parent.parent / "source_files"
+REPO_DIR = Path(__file__).resolve().parent.parent
+SOURCE_DIR = REPO_DIR / "source_files"
+OBJECT_DIR = REPO_DIR / "object_files"
 # Each result pixel drawn as a 5x5 block, so the 64x64 preview is easy to judge.
 PREVIEW_SCALE = 5
 PREVIEW_SIZE = 64 * PREVIEW_SCALE
@@ -149,9 +153,13 @@ class CutterApp:
         self.result_canvas.grid(row=1, column=0)
         self.result_item = self.result_canvas.create_image(0, 0, anchor="nw")
 
-        # Disabled until saving exists (ROADMAP Iteration 3, step 6).
-        self.save_button = ttk.Button(pane, text="Save", state="disabled")
+        # Enabled once a file is shown.
+        self.save_button = ttk.Button(
+            pane, text="Save", state="disabled", command=self._save
+        )
         self.save_button.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+        self.save_status = ttk.Label(pane, text="", wraplength=PREVIEW_SIZE)
+        self.save_status.grid(row=3, column=0, sticky="w", pady=(4, 0))
 
     def _fill_file_lists(self) -> None:
         self.image_paths = list_files(SOURCE_DIR / "images", IMAGE_SUFFIXES)
@@ -187,6 +195,8 @@ class CutterApp:
             self.source_canvas.itemconfigure("square", state="hidden")
             self.result_canvas.itemconfigure(self.result_item, image="")
             self.source_label.configure(text=f"Cannot open {path.name}: {error}")
+            self.save_button.configure(state="disabled")
+            self.save_status.configure(text="")
             self.result_label.configure(text="Result (64x64)")
             return
 
@@ -195,14 +205,34 @@ class CutterApp:
         details = f"{w}x{h}" + (f", {frames} frames" if self.media.is_animated else "")
         self.source_label.configure(text=f"{path.name} ({details})")
         self.square = centered_square(self.media.size)
+        self.save_button.configure(state="normal")
+        self.save_status.configure(text="")
         self._update_result()
         self._rescale()
+
+    def _save(self) -> None:
+        if self.media is None or self.square is None:
+            return
+        path = output_path(self.media.path, OBJECT_DIR)
+        shown = path.relative_to(REPO_DIR)
+        if path.exists() and not messagebox.askyesno(
+            "Overwrite?", f"{shown} already exists. Replace it?", parent=self.root
+        ):
+            return
+        try:
+            save_result(self.media, self.square, path)
+        except OSError as error:
+            messagebox.showerror("Save failed", str(error), parent=self.root)
+            return
+        self.save_status.configure(text=f"Saved {shown}")
 
     def _update_result(self) -> None:
         """Forget the old result after the square changed, and show the new one."""
         if self.media is None or self.square is None:
             return
         self.result_frames = [None] * len(self.media.frames)
+        # A moved or resized square is no longer what was saved.
+        self.save_status.configure(text="")
         left, top, side = self.square
         self.result_label.configure(
             text=f"Result (64x64): {side}x{side} px at ({left}, {top})"
