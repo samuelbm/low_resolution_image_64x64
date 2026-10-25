@@ -4,8 +4,9 @@ from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
 ROWS = 64
 COLS = 64
-# Use "adafruit-hat-pwm" only once the GPIO4-GPIO18 solder mod is done (D-004).
-HARDWARE_MAPPING = "adafruit-hat"
+# The GPIO4-GPIO18 wire is soldered (D-010): OE pulses come from the Pi's PWM
+# hardware. Never go back to "adafruit-hat" while the wire is on.
+HARDWARE_MAPPING = "adafruit-hat-pwm"
 # Value that worked at first light (Iteration 1).
 GPIO_SLOWDOWN = 2
 BRIGHTNESS = 50  # percent

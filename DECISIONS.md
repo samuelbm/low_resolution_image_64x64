@@ -112,3 +112,32 @@ Alternatives:
 Ask before each commit/push (the previous rule): left room for a quick "yes" or an ambiguous request to turn into a push.
 
 Consequences: Every commit and push is done by the user. Claude's replies end with the exact git commands when files changed.
+
+D-009: Display settings are tuned per kind of content
+
+Status: Accepted (2026-10-24)
+
+Context: Tests on the 64x64 panel (2026-10-22 to 2026-10-24) showed that pwm_bits and pwm_lsb_nanoseconds trade against each other. Fewer bitplanes allow longer pulses (less ghosting) at a high refresh rate, but cost grey levels. 11 bits at 130 ns ghosted; 11 bits at 300 ns removed the ghosting but dropped the refresh to about 50 Hz (CRT-like flicker); 4 bits gave sharp bands and a stroboscopic effect on the moving wave. No single setting is best for everything.
+
+Decision: The PWM settings (pwm_bits, pwm_lsb_nanoseconds, possibly pwm_dither_bits) are chosen per kind of content, as named profiles in matrix_config.py, and found by testing on the panel. Rough starting points: cartoons, logos, pixel art and text with few colours: 4-5 bits with long pulses (500-1000 ns); photos and real-image GIFs: 9-11 bits around 300 ns. Before tuning or adding a display feature, Claude asks the user what kind of content will be shown (cartoon/flat colours, photo, real-image GIF, text, ...).
+
+Alternatives:
+
+One global setting for all content: simpler, but either ghosts or flickers on cartoons, or bands on photos.
+
+Consequences: matrix_config.py holds several profiles instead of one PWM setting; each display script says which profile it uses. Profiles are re-tested after the GPIO4-GPIO18 mod (adafruit-hat-pwm), since glitches then no longer hide other effects.
+
+D-010: GPIO4-GPIO18 wire soldered, mapping adafruit-hat-pwm
+
+Status: Accepted (2026-10-25). Supersedes D-004.
+
+Context: Without the mod, the Bonnet's OE pulses (LED on-time) are timed by the CPU. Linux interruptions and our own per-frame Python work stretched them, giving random brightness glitches, worst on dim colours and during animation; a static image showed only small glitches. The library README (Limitations, Improving flicker: hardware patch) recommends the mod.
+
+Decision: A wire is soldered between GPIO4 (pin 7) and GPIO18 (pin 12) on 2026-10-25. Always use hardware_mapping = "adafruit-hat-pwm", so the OE pulses come from the Pi's PWM peripheral on GPIO18. Set once in rgb_led_matrix/matrix_config.py; library samples need --led-gpio-mapping=adafruit-hat-pwm.
+
+Alternatives:
+
+Keep adafruit-hat and hide the jitter with 4 PWM bits and long pulses: tested, gave sharp bands and a stroboscopic effect on motion.
+Prepared canvases only: reduce per-frame CPU work, but cannot help content that never repeats (video).
+
+Consequences: Never run anything with adafruit-hat while the wire is on. On-board audio must stay off (D-005): the PWM peripheral is shared with it. The same library and wheel are used; no rebuild. The PWM profiles of D-009 are re-tested with the wire.

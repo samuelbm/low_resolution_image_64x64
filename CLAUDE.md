@@ -23,7 +23,7 @@ Hard rules:
 
 Never build or pip install the rgbmatrix library from source on the Pi Zero 2W. It freezes from lack of RAM. Build wheels on the Pi 4, install them on the Zero.
 Wheels only work if both Pis have the same OS release, CPU architecture and Python version. If any of these change, rebuild all wheels.
-Always use --led-gpio-mapping=adafruit-hat (Python: options.hardware_mapping = "adafruit-hat"). Use adafruit-hat-pwm only if the GPIO4–GPIO18 solder mod has been done.
+The GPIO4–GPIO18 wire is soldered on the Bonnet (2026-10-25, D-010). Always use --led-gpio-mapping=adafruit-hat-pwm (Python: options.hardware_mapping = "adafruit-hat-pwm"). Never use adafruit-hat while the wire is on.
 On-board audio must stay disabled on the Zero (the library refuses to run otherwise).
 Always shut a Pi down before removing power: sudo shutdown -h now, then wait until the green LED stops flickering (on the Zero 2W it goes off). Pulling the plug while the OS writes can corrupt or kill the SD card (happened 2026-10-20).
 3. Session workflow (memory between sessions)
