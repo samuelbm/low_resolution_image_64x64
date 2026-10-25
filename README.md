@@ -1,3 +1,64 @@
+Cutter: crop images and GIFs to 64x64 (this project)
+=====================================================
+
+> This section is about **our own tool**. Everything below the line further
+> down is the original README of the hzeller rpi-rgb-led-matrix library,
+> kept as reference.
+
+### What it does
+
+The panel is only 64x64 pixels, so most of an image or GIF has to go. The
+cutter is a small desktop app (host only) to choose **which square part** of
+an image or GIF ends up on the panel, and to see the 64x64 result before
+saving it.
+
+- **Left pane:** the files in `source_files/`, in two lists: *Images*
+  (`source_files/images/`) and *GIFs* (`source_files/gifs/`).
+- **Centre pane:** the selected file at a size that fits the window (GIFs
+  play). A red square on top of it marks the crop.
+- **Right pane:** the result: the crop scaled to 64x64, shown enlarged with
+  visible pixels so you can judge what the panel will show (GIFs play).
+- **The square** is always a square. Drag inside it to move it; drag a
+  corner to make it bigger or smaller. It cannot leave the image.
+- **Save** writes the result next to the other prepared files, with the
+  suffix `_64x64bits`:
+  - `source_files/images/pumpkin.png` -> `object_files/images/pumpkin_64x64bits.png`
+  - `source_files/gifs/taylor-swift-face.gif` -> `object_files/gifs/taylor-swift-face_64x64bits.gif`
+    (every frame cropped the same way, frame timing kept)
+
+Colours keep their full 8 bits per channel; how many levels the panel really
+shows is a matter of the display settings (see DECISIONS.md D-009).
+
+### How to run it (host)
+
+From the repository root:
+
+```
+uv run cutter_project/cutter_app.py
+```
+
+Needs only what the project already has: Python 3.13 with tkinter (included
+in the uv-managed Python) and Pillow. Nothing of this runs on the Pis.
+
+### How to use it
+
+1. Put source files in `source_files/images/` or `source_files/gifs/`.
+2. Start the app and click a file name on the left.
+3. Move and resize the red square until the right pane looks good.
+4. Click **Save**.
+5. Copy the result to the Pi Zero 2W (images and GIFs are not in git):
+   ```
+   scp object_files/images/<name>_64x64bits.png admin@rgbmatrix.local:~/low_resolution_image_64x64/object_files/images/
+   ```
+6. Show it on the panel (Pi Zero 2W):
+   ```
+   sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/show_image.py object_files/images/<name>_64x64bits.png
+   ```
+
+Status: being built step by step, see ROADMAP.md, Iteration 3.
+
+---
+
 Controlling RGB LED display with Raspberry Pi GPIO
 ==================================================
 

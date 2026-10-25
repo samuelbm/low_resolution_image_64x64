@@ -1,40 +1,56 @@
 Living plan. Updated at the end of every work session. Status: [ ] to do, [~] in progress, [x] done.
 
-Iteration 2: Our own app on the matrix
+Iteration 3: Cutter app (host): crop and preview images/GIFs for 64x64
 
-Goal: replace the library samples with our own Python code, kept in its own folder next to the library, deployed from the host to the Pi Zero 2W and running on the 64x64 panel.
+Goal: a desktop app in cutter_project/ to pick a source image or GIF, choose a square crop with a red square, preview the 64x64 result and save it to object_files/ (see README, "Cutter" section). Built one step at a time; after each step Claude stops, the user reviews and commits (D-008).
+
+Technical frame: tkinter (stdlib, already in the uv-managed Python 3.13) + Pillow, no new dependency. Host only, nothing goes to the Pis. Entry point: uv run cutter_project/cutter_app.py. Crop and resize code shared with cutter_project/resize_to_64x64.py (LANCZOS, same _64x64bits suffix).
 
 In progress
- [ ] Decide where our code lives (open question, see "Decision needed" below). Record the choice as a new DECISIONS.md entry.
+ [ ] Step 1 (next).
 
 To do
+ [ ] Step 1: Empty app. A window opens with three panes (left: file lists, centre: source, right: result) and a Save button; nothing works yet. Closes cleanly.
+ [ ] Step 2: Browse and view. The left pane lists source_files/images/ and source_files/gifs/ in two separate lists. Clicking a name shows the file in the centre pane, scaled to fit; GIFs play with their own frame timing.
+ [ ] Step 3: Fixed square and result. A red square of 64x64 source pixels sits in the centre of the image/GIF (smaller if the image is smaller). The right pane shows the crop scaled to 64x64 and enlarged with visible pixels (GIFs play). The square cannot be moved yet.
+ [ ] Step 4: Drag. Click inside the square and drag to move it; it stays 64x64 source pixels and cannot leave the image. The right pane follows live.
+ [ ] Step 5: Resize. Drag a corner to make the square bigger or smaller; it always stays a square, the opposite corner stays fixed, it cannot leave the image, minimum size 8 source pixels. The right pane follows live.
+ [ ] Step 6: Save. The Save button writes <name>_64x64bits.png to object_files/images/ or <name>_64x64bits.gif to object_files/gifs/ (all frames cropped the same way, frame durations and looping kept). Shows where it was saved.
 
-Phase A: Project skeleton (host)
- [ ] Bring in the source from the other project (path to confirm) instead of starting from zero.
- [ ] Own folder with its own pyproject.toml managed by uv. Must not touch the library's root pyproject.toml / CMakeLists.txt.
- [ ] One config module for all matrix settings: rows=64, cols=64, hardware_mapping="adafruit-hat", gpio_slowdown=2, brightness (CLAUDE.md §5).
- [ ] Entry point that creates the RGBMatrix from that config, clears the matrix on exit and handles Ctrl+C cleanly.
- [ ] ruff check / ruff format pass.
+Notes
+ The Save button is drawn in step 1 but only works in step 6.
+ GIF results are not shown on the panel yet: the panel side needs the animation player (Iteration 2, to do).
 
-Phase B: Deploy to the Zero
- [ ] Copy the app folder from the host to the Zero (scp/rsync; same path as the samples: host -> Zero).
- [ ] Run it with the existing ~/rgbmatrix/.venv (rgbmatrix already installed). No rebuild needed unless a new compiled dependency is added.
- [ ] If the app needs extra packages (e.g. Pillow for images): ask first, uv add, uv export requirements.txt, build wheels on the Pi 4, install offline on the Zero (D-002, D-003).
+Iteration 2: Our own code on the matrix (mostly DONE)
 
-Phase C: First own content
- [ ] Minimal own script: fill the panel with one colour, then clear on exit (the old Phase 4 item from Iteration 1).
- [ ] Port the first real feature from the other project.
+Goal: replace the library samples with our own Python code in this repo, deployed to the Pi Zero 2W and running on the 64x64 panel.
 
-Decision needed: where does our code live?
- Option 1 (recommended): a folder inside this repo (e.g. app/) with its own pyproject.toml, on a separate git branch. The library stays untouched next to it.
- Option 2: keep the other project as its own repo and only install the rgbmatrix wheel into its environment.
+Done
+ [x] Code lives in this repo; the library is only a wheel installed on the Zero (D-011). Branch poc.
+ [x] uv project at the repo root (Python 3.13), Pillow added (pyproject.toml, uv.lock, requirements.txt).
+ [x] rgb_led_matrix/matrix_config.py: the one place for matrix settings (rows, cols, mapping, slowdown, brightness, PWM).
+ [x] Deploy by git: read-only GitHub deploy key on the Zero (~/.ssh/pizero2w_github, set in ~/.ssh/config), clone in ~/low_resolution_image_64x64, git pull to update. Images/GIFs are git-ignored and copied with scp.
+ [x] Pillow 13.0.0 installed in ~/rgbmatrix/.venv on the Zero with pip --only-binary=:all: -r requirements.txt (ready-made aarch64 wheel, nothing compiled).
+ [x] diagonal_wave.py (11 bits) and diagonal_wave_4bits.py, shared code in utils.py. Clear on Ctrl+C.
+ [x] cutter_project/resize_to_64x64.py: centre-crop to square, LANCZOS to 64x64, _64x64bits suffix.
+ [x] rgb_led_matrix/show_image.py: static 64x64 image until Ctrl+C.
+ [x] Artefacts investigated: ghosting (pwm_lsb_nanoseconds), refresh flicker (pwm_bits x lsb), brightness glitches (software OE timing), strobe on motion (4 bits + jumping edges).
+ [x] GPIO4-GPIO18 wire soldered, mapping adafruit-hat-pwm (D-010, 2026-10-25). Static image: clean.
+
+To do
+ [ ] Animation player with prepared canvases: host writes a raw RGB file with a small header, the Zero loads it into one canvas per frame once and only swaps (*.rgb git-ignored). Also plays GIFs from the cutter.
+ [ ] PWM profiles per kind of content in matrix_config.py, found by testing (D-009). Ask the user what content each time.
+ [ ] Optional --pwm-bits / --pwm-lsb-ns arguments on show_image.py for those tests.
+ [ ] Retest diagonal_wave.py with the wire; decide whether diagonal_wave_4bits.py is still needed.
+ [ ] resize_to_64x64.py writes to cutter_project/images/ since it moved; point it to object_files/images/.
+ [ ] Clean the two staged image_resolution_analyzer/ entries (files no longer exist).
 
 Later (not planned yet)
- Shutdown push button on GPIO3 (pin 5) to GND with dtoverlay=gpio-shutdown, so the Zero never has to be unplugged hard. GPIO3 is not used by the adafruit-hat mapping (checked in lib/hardware-mapping.c).
+ Shutdown push button on GPIO3 (pin 5) to GND with dtoverlay=gpio-shutdown, so the Zero never has to be unplugged hard. GPIO3 is not used by the adafruit-hat mapping (checked in lib/hardware-mapping.c); recheck for adafruit-hat-pwm.
  Read-only root file system (raspi-config overlay FS) once the app is stable, to protect the SD card from power cuts.
  Start the display automatically at boot (systemd service).
- Show text, images, animations.
- Flicker improvements: GPIO4-GPIO18 solder mod + adafruit-hat-pwm (D-004), isolating a CPU core, disabling unneeded services (README "Use minimal Raspbian distribution").
+ Show text.
+ Flicker improvements still open: isolating a CPU core, disabling unneeded services (README "Use minimal Raspbian distribution"), --led-limit-refresh.
  Remove the old snap rpi-imager 1.9.6 from the host (sudo snap remove rpi-imager) (D-007).
 
 Iteration 1: First light (DONE 2026-10-22)

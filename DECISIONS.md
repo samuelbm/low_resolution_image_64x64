@@ -141,3 +141,32 @@ Keep adafruit-hat and hide the jitter with 4 PWM bits and long pulses: tested, g
 Prepared canvases only: reduce per-frame CPU work, but cannot help content that never repeats (video).
 
 Consequences: Never run anything with adafruit-hat while the wire is on. On-board audio must stay off (D-005): the PWM peripheral is shared with it. The same library and wheel are used; no rebuild. The PWM profiles of D-009 are re-tested with the wire.
+
+D-011: Our code lives in this repo; the library is only an installed wheel
+
+Status: Accepted (2026-10-25). Answers the open question of ROADMAP Iteration 2.
+
+Context: The four .md files came from the earlier project that got rgbmatrix working on the Zero. That project kept the library source next to our code. This repo (low_resolution_image_64x64) is about producing images for the panel.
+
+Decision: All our code lives in this repo: rgb_led_matrix/ runs on the Zero, cutter_project/ runs on the host. The library is not part of the repo; the Zero uses the wheel already installed in ~/rgbmatrix/.venv (D-006). The Zero gets the code with git clone/pull (read-only deploy key). Pure-Python or ready-made-wheel dependencies such as Pillow are installed on the Zero with pip --only-binary=:all: -r requirements.txt, which never compiles; anything that would need compiling still goes through the Pi 4 (D-002).
+
+Alternatives:
+
+A folder inside the library repo on a separate branch: mixes our history with the library's, and the library build files (pyproject.toml, CMakeLists.txt) would sit next to ours.
+
+Consequences: Images and GIFs are git-ignored and copied to the Zero with scp. The library's own README is kept below our section in README.md as reference.
+
+D-012: tkinter for the cutter app
+
+Status: Proposed (2026-10-25)
+
+Context: The cutter (ROADMAP Iteration 3) is a small desktop app on the host: file lists, an image/GIF view with a draggable square, a 64x64 preview, a Save button.
+
+Decision: Use tkinter (Python standard library) with Pillow for image work.
+
+Alternatives:
+
+PySide6/PyQt6: nicer widgets, but a large new dependency; it would also land in requirements.txt and the Pis would have to skip it.
+A web page (local server + browser): more moving parts for a one-person tool.
+
+Consequences: No new dependency (tkinter is included in the uv-managed Python 3.13 on the host, checked: Tk 9.0). GIF playback is done by hand (Pillow frames + tkinter timer).
