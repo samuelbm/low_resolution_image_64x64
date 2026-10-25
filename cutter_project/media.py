@@ -122,15 +122,37 @@ def resize_square(
     return new_left, new_top, new_side
 
 
-def output_path(source: Path, object_dir: Path) -> Path:
-    """Where the result of `source` is saved: same name plus SUFFIX.
+def clean_name(name: str) -> str:
+    """The name as typed, without spaces around it or a SUFFIX typed by hand."""
+    name = name.strip()
+    # SUFFIX is added on save; typing it too would give name_64x64bits_64x64bits.
+    return name.removesuffix(SUFFIX)
+
+
+def name_problem(name: str) -> str | None:
+    """Why `name` cannot be used as a file name, or None if it can."""
+    name = clean_name(name)
+    if not name:
+        return "Enter a name."
+    # A slash would save into another folder; a leading dot hides the file.
+    if "/" in name or "\\" in name:
+        return "The name cannot contain / or \\."
+    if name.startswith("."):
+        return "The name cannot start with a dot."
+    return None
+
+
+def output_path(source: Path, object_dir: Path, name: str | None = None) -> Path:
+    """Where the result of `source` is saved: `name` (default: the source name)
+    plus SUFFIX.
 
     GIFs go to object_dir/gifs as .gif, everything else to object_dir/images
     as .png (lossless, whatever the source format was).
     """
+    stem = clean_name(name) if name is not None else source.stem
     if source.suffix.lower() in GIF_SUFFIXES:
-        return object_dir / "gifs" / f"{source.stem}{SUFFIX}.gif"
-    return object_dir / "images" / f"{source.stem}{SUFFIX}.png"
+        return object_dir / "gifs" / f"{stem}{SUFFIX}.gif"
+    return object_dir / "images" / f"{stem}{SUFFIX}.png"
 
 
 def save_result(media: Media, square: Square, path: Path) -> None:

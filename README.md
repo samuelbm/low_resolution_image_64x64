@@ -20,8 +20,14 @@ saving it.
   visible pixels so you can judge what the panel will show (GIFs play).
 - **The square** is always a square. Drag inside it to move it; drag a
   corner to make it bigger or smaller. It cannot leave the image.
-- **Save** writes the result next to the other prepared files, with the
-  suffix `_64x64bits`:
+- **Save as:** the name to save under, filled with the source file name.
+  Change it (e.g. `pumpkin2`) to save several crops of the same file. The
+  suffix `_64x64bits` and the extension are added for you, and the full target
+  path is shown under the box.
+- **Save** writes the result next to the other prepared files. It never
+  overwrites: while a file with that name already exists (or the name is empty
+  or contains `/` or `\`), Save is blocked and the reason is shown. Default
+  names:
   - `source_files/images/pumpkin.png` -> `object_files/images/pumpkin_64x64bits.png`
   - `source_files/gifs/taylor-swift-face.gif` -> `object_files/gifs/taylor-swift-face_64x64bits.gif`
     (every frame cropped the same way, frame timing kept)
@@ -45,7 +51,7 @@ in the uv-managed Python) and Pillow. Nothing of this runs on the Pis.
 1. Put source files in `source_files/images/` or `source_files/gifs/`.
 2. Start the app and click a file name on the left.
 3. Move and resize the red square until the right pane looks good.
-4. Click **Save**.
+4. Check the name in **Save as**, then click **Save** (or press Enter in the box).
 5. Copy the result to the Pi Zero 2W (images and GIFs are not in git):
    ```
    scp object_files/images/<name>_64x64bits.png admin@rgbmatrix.local:~/low_resolution_image_64x64/object_files/images/

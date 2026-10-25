@@ -20,6 +20,7 @@ from media import (
     list_files,
     load_media,
     move_square,
+    name_problem,
     output_path,
     resize_square,
     save_result,
@@ -40,6 +41,7 @@ SIGNAL_POLL_MS = 200
 # every frame again.
 RESIZE_DELAY_MS = 100
 SQUARE_COLOR = "red"
+PROBLEM_COLOR = "#c00000"
 SQUARE_WIDTH = 2
 # Corner handles, in screen pixels: drawn this size, and grabbed within this
 # distance of the corner.
@@ -153,13 +155,22 @@ class CutterApp:
         self.result_canvas.grid(row=1, column=0)
         self.result_item = self.result_canvas.create_image(0, 0, anchor="nw")
 
-        # Enabled once a file is shown.
+        ttk.Label(pane, text="Save as").grid(row=2, column=0, sticky="w", pady=(8, 0))
+        self.save_name = tk.StringVar()
+        # Every keystroke re-checks the name, so Save is never enabled for a
+        # name that would overwrite a file.
+        self.save_name.trace_add("write", lambda *_: self._check_save())
+        self.name_entry = ttk.Entry(pane, textvariable=self.save_name, state="disabled")
+        self.name_entry.grid(row=3, column=0, sticky="ew")
+        self.name_entry.bind("<Return>", lambda _e: self._save())
+        # Target path, the reason Save is blocked, or what was just saved.
+        self.save_hint = ttk.Label(pane, text="", wraplength=PREVIEW_SIZE)
+        self.save_hint.grid(row=4, column=0, sticky="w", pady=(4, 0))
+
         self.save_button = ttk.Button(
             pane, text="Save", state="disabled", command=self._save
         )
-        self.save_button.grid(row=2, column=0, sticky="ew", pady=(8, 0))
-        self.save_status = ttk.Label(pane, text="", wraplength=PREVIEW_SIZE)
-        self.save_status.grid(row=3, column=0, sticky="w", pady=(4, 0))
+        self.save_button.grid(row=5, column=0, sticky="ew", pady=(8, 0))
 
     def _fill_file_lists(self) -> None:
         self.image_paths = list_files(SOURCE_DIR / "images", IMAGE_SUFFIXES)
@@ -195,8 +206,8 @@ class CutterApp:
             self.source_canvas.itemconfigure("square", state="hidden")
             self.result_canvas.itemconfigure(self.result_item, image="")
             self.source_label.configure(text=f"Cannot open {path.name}: {error}")
-            self.save_button.configure(state="disabled")
-            self.save_status.configure(text="")
+            self.save_name.set("")
+            self.name_entry.configure(state="disabled")
             self.result_label.configure(text="Result (64x64)")
             return
 
@@ -205,34 +216,56 @@ class CutterApp:
         details = f"{w}x{h}" + (f", {frames} frames" if self.media.is_animated else "")
         self.source_label.configure(text=f"{path.name} ({details})")
         self.square = centered_square(self.media.size)
-        self.save_button.configure(state="normal")
-        self.save_status.configure(text="")
+        self.name_entry.configure(state="normal")
+        self.save_name.set(path.stem)
         self._update_result()
         self._rescale()
 
-    def _save(self) -> None:
+    def _save_target(self) -> tuple[Path | None, str]:
+        """The file Save would write, or None and the reason it is blocked."""
         if self.media is None or self.square is None:
-            return
-        path = output_path(self.media.path, OBJECT_DIR)
+            return None, ""
+        name = self.save_name.get()
+        problem = name_problem(name)
+        if problem is not None:
+            return None, problem
+        path = output_path(self.media.path, OBJECT_DIR, name)
         shown = path.relative_to(REPO_DIR)
-        if path.exists() and not messagebox.askyesno(
-            "Overwrite?", f"{shown} already exists. Replace it?", parent=self.root
-        ):
+        if path.exists():
+            return None, f"{shown} already exists: choose another name (e.g. add 2)."
+        return path, f"-> {shown}"
+
+    def _check_save(self) -> None:
+        path, message = self._save_target()
+        self.save_button.configure(state="normal" if path else "disabled")
+        self.save_hint.configure(
+            text=message, foreground="" if path or not message else PROBLEM_COLOR
+        )
+
+    def _save(self) -> None:
+        path, _ = self._save_target()
+        # Checked again here: the Enter key does not look at the button state.
+        if path is None:
             return
         try:
             save_result(self.media, self.square, path)
         except OSError as error:
             messagebox.showerror("Save failed", str(error), parent=self.root)
             return
-        self.save_status.configure(text=f"Saved {shown}")
+        self._check_save()  # the name is now taken, so Save locks itself
+        self.save_hint.configure(
+            text=f"Saved {path.relative_to(REPO_DIR)}. "
+            "Change the name to save another crop.",
+            foreground="",
+        )
 
     def _update_result(self) -> None:
         """Forget the old result after the square changed, and show the new one."""
         if self.media is None or self.square is None:
             return
         self.result_frames = [None] * len(self.media.frames)
-        # A moved or resized square is no longer what was saved.
-        self.save_status.configure(text="")
+        # After a move the "Saved ..." note no longer describes the square.
+        self._check_save()
         left, top, side = self.square
         self.result_label.configure(
             text=f"Result (64x64): {side}x{side} px at ({left}, {top})"
