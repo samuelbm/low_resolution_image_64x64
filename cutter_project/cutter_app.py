@@ -5,15 +5,23 @@ See README.md, "Cutter" section, and ROADMAP.md Iteration 3 for the plan.
 """
 
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk
 
+from media import GIF_SUFFIXES, IMAGE_SUFFIXES, Media, fit_size, list_files, load_media
+from PIL import Image, ImageTk
+
 TITLE = "Cutter 64x64"
+SOURCE_DIR = Path(__file__).resolve().parent.parent / "source_files"
 # Each result pixel drawn as a 5x5 block, so the 64x64 preview is easy to judge.
 PREVIEW_SCALE = 5
 PREVIEW_SIZE = 64 * PREVIEW_SCALE
 # Lets Python notice Ctrl+C in the terminal: tkinter's main loop otherwise
 # blocks signal handling until the next window event.
 SIGNAL_POLL_MS = 200
+# While the window is being resized, wait for it to settle before rescaling
+# every frame again.
+RESIZE_DELAY_MS = 100
 
 
 class CutterApp:
@@ -24,9 +32,17 @@ class CutterApp:
         root.columnconfigure(1, weight=1)
         root.rowconfigure(0, weight=1)
 
+        self.media: Media | None = None
+        # Tk only shows a PhotoImage while Python holds a reference to it.
+        self.display_frames: list[ImageTk.PhotoImage] = []
+        self.frame_index = 0
+        self.animation_job: str | None = None
+        self.resize_job: str | None = None
+
         self._build_file_pane()
         self._build_source_pane()
         self._build_result_pane()
+        self._fill_file_lists()
 
     def _build_file_pane(self) -> None:
         pane = ttk.Frame(self.root, padding=8)
@@ -42,15 +58,25 @@ class CutterApp:
         self.gif_list = tk.Listbox(pane, width=30, exportselection=False)
         self.gif_list.grid(row=3, column=0, sticky="nsew")
 
+        self.image_list.bind(
+            "<<ListboxSelect>>", lambda _e: self._on_select(self.image_list)
+        )
+        self.gif_list.bind(
+            "<<ListboxSelect>>", lambda _e: self._on_select(self.gif_list)
+        )
+
     def _build_source_pane(self) -> None:
         pane = ttk.Frame(self.root, padding=8)
         pane.grid(row=0, column=1, sticky="nsew")
         pane.columnconfigure(0, weight=1)
         pane.rowconfigure(1, weight=1)
 
-        ttk.Label(pane, text="Source").grid(row=0, column=0, sticky="w")
+        self.source_label = ttk.Label(pane, text="Source")
+        self.source_label.grid(row=0, column=0, sticky="w")
         self.source_canvas = tk.Canvas(pane, background="#202020", highlightthickness=0)
         self.source_canvas.grid(row=1, column=0, sticky="nsew")
+        self.source_item = self.source_canvas.create_image(0, 0, anchor="nw")
+        self.source_canvas.bind("<Configure>", self._on_canvas_resize)
 
     def _build_result_pane(self) -> None:
         pane = ttk.Frame(self.root, padding=8)
@@ -69,6 +95,92 @@ class CutterApp:
         # Disabled until saving exists (ROADMAP Iteration 3, step 6).
         self.save_button = ttk.Button(pane, text="Save", state="disabled")
         self.save_button.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+
+    def _fill_file_lists(self) -> None:
+        self.image_paths = list_files(SOURCE_DIR / "images", IMAGE_SUFFIXES)
+        self.gif_paths = list_files(SOURCE_DIR / "gifs", GIF_SUFFIXES)
+        for path in self.image_paths:
+            self.image_list.insert("end", path.name)
+        for path in self.gif_paths:
+            self.gif_list.insert("end", path.name)
+
+    def _on_select(self, listbox: tk.Listbox) -> None:
+        selection = listbox.curselection()
+        if not selection:
+            return
+        # One file at a time: picking in one list clears the other.
+        if listbox is self.image_list:
+            self.gif_list.selection_clear(0, "end")
+            path = self.image_paths[selection[0]]
+        else:
+            self.image_list.selection_clear(0, "end")
+            path = self.gif_paths[selection[0]]
+        self._show(path)
+
+    def _show(self, path: Path) -> None:
+        self._stop_animation()
+        try:
+            self.media = load_media(path)
+        except (OSError, ValueError) as error:
+            self.media = None
+            self.display_frames = []
+            self.source_canvas.itemconfigure(self.source_item, image="")
+            self.source_label.configure(text=f"Cannot open {path.name}: {error}")
+            return
+
+        w, h = self.media.size
+        frames = len(self.media.frames)
+        details = f"{w}x{h}" + (f", {frames} frames" if self.media.is_animated else "")
+        self.source_label.configure(text=f"{path.name} ({details})")
+        self._rescale()
+
+    def _on_canvas_resize(self, _event: tk.Event) -> None:
+        if self.resize_job is not None:
+            self.root.after_cancel(self.resize_job)
+        self.resize_job = self.root.after(RESIZE_DELAY_MS, self._rescale)
+
+    def _rescale(self) -> None:
+        """Fit the current file into the centre pane, keeping its ratio."""
+        self.resize_job = None
+        if self.media is None:
+            return
+        box = (self.source_canvas.winfo_width(), self.source_canvas.winfo_height())
+        if box[0] < 2 or box[1] < 2:  # window not drawn yet
+            return
+        size = fit_size(self.media.size, box)
+        # Shrinking: LANCZOS keeps detail. Enlarging a small file: NEAREST keeps
+        # its pixels sharp instead of blurring them.
+        shrinking = size[0] < self.media.size[0]
+        resample = Image.Resampling.LANCZOS if shrinking else Image.Resampling.NEAREST
+        self.display_frames = [
+            ImageTk.PhotoImage(frame.resize(size, resample))
+            for frame in self.media.frames
+        ]
+        # Centred in the pane; later steps map the red square through this offset.
+        self.display_offset = ((box[0] - size[0]) // 2, (box[1] - size[1]) // 2)
+        self.display_size = size
+        self.source_canvas.coords(self.source_item, *self.display_offset)
+
+        self._stop_animation()
+        self.frame_index = 0
+        self._draw_frame()
+
+    def _draw_frame(self) -> None:
+        self.source_canvas.itemconfigure(
+            self.source_item, image=self.display_frames[self.frame_index]
+        )
+        if self.media is not None and self.media.is_animated:
+            delay = self.media.durations_ms[self.frame_index]
+            self.animation_job = self.root.after(delay, self._next_frame)
+
+    def _next_frame(self) -> None:
+        self.frame_index = (self.frame_index + 1) % len(self.display_frames)
+        self._draw_frame()
+
+    def _stop_animation(self) -> None:
+        if self.animation_job is not None:
+            self.root.after_cancel(self.animation_job)
+            self.animation_job = None
 
 
 def main() -> None:
