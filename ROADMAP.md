@@ -20,7 +20,7 @@ To do
 
 Notes
  scripts/sync_to_zero.sh (host): rsync of object_files/ to the Zero, keeping the folder structure.
- GIF results are not shown on the panel yet: the panel side needs the animation player (Iteration 2, to do).
+ GIF results play on the panel with rgb_led_matrix/show_gif.py (Iteration 2).
 
 Iteration 2: Our own code on the matrix (mostly DONE)
 
@@ -35,11 +35,12 @@ Done
  [x] diagonal_wave.py (11 bits) and diagonal_wave_4bits.py, shared code in utils.py. Clear on Ctrl+C.
  [x] cutter_project/resize_to_64x64.py: centre-crop to square, LANCZOS to 64x64, _64x64bits suffix.
  [x] rgb_led_matrix/show_image.py: static 64x64 image until Ctrl+C.
+ [~] rgb_led_matrix/show_gif.py: plays a 64x64 GIF from the cutter in a loop, one prepared canvas per frame (converted once at startup, the loop only swaps), GIF frame timing kept. Written 2026-10-25, to test on the panel.
  [x] Artefacts investigated: ghosting (pwm_lsb_nanoseconds), refresh flicker (pwm_bits x lsb), brightness glitches (software OE timing), strobe on motion (4 bits + jumping edges).
  [x] GPIO4-GPIO18 wire soldered, mapping adafruit-hat-pwm (D-010, 2026-10-25). Static image: clean.
 
 To do
- [ ] Animation player with prepared canvases: host writes a raw RGB file with a small header, the Zero loads it into one canvas per frame once and only swaps (*.rgb git-ignored). Also plays GIFs from the cutter.
+ [ ] Generated animations (e.g. the diagonal wave) with prepared canvases: either save them as GIFs for show_gif.py, or a raw RGB file format if GIF's 256 colours per frame are not enough.
  [ ] PWM profiles per kind of content in matrix_config.py, found by testing (D-009). Ask the user what content each time.
  [ ] Optional --pwm-bits / --pwm-lsb-ns arguments on show_image.py for those tests.
  [ ] Retest diagonal_wave.py with the wire; decide whether diagonal_wave_4bits.py is still needed.
