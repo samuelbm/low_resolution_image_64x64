@@ -9,6 +9,7 @@ from pathlib import Path
 from tkinter import ttk
 
 from media import (
+    CORNER_DIRECTIONS,
     GIF_SUFFIXES,
     IMAGE_SUFFIXES,
     Media,
@@ -19,6 +20,7 @@ from media import (
     list_files,
     load_media,
     move_square,
+    resize_square,
 )
 from PIL import Image, ImageTk
 
@@ -35,6 +37,15 @@ SIGNAL_POLL_MS = 200
 RESIZE_DELAY_MS = 100
 SQUARE_COLOR = "red"
 SQUARE_WIDTH = 2
+# Corner handles, in screen pixels: drawn this size, and grabbed within this
+# distance of the corner.
+HANDLE_SIZE = 8
+CORNER_CURSORS = {
+    "nw": "top_left_corner",
+    "ne": "top_right_corner",
+    "sw": "bottom_left_corner",
+    "se": "bottom_right_corner",
+}
 
 
 class CutterApp:
@@ -54,8 +65,10 @@ class CutterApp:
         self.square: Square | None = None
         self.display_offset = (0, 0)
         self.display_size = (1, 1)
+        # What the current mouse drag does: "move", a corner name, or nothing.
+        self.drag_mode: str | None = None
         # Where inside the square the mouse grabbed it, in source pixels.
-        self.drag_grab: tuple[float, float] | None = None
+        self.drag_grab: tuple[float, float] = (0, 0)
         self.frame_index = 0
         self.animation_job: str | None = None
         self.resize_job: str | None = None
@@ -97,9 +110,23 @@ class CutterApp:
         self.source_canvas = tk.Canvas(pane, background="#202020", highlightthickness=0)
         self.source_canvas.grid(row=1, column=0, sticky="nsew")
         self.source_item = self.source_canvas.create_image(0, 0, anchor="nw")
+        # Everything tagged "square" is shown, hidden and raised together.
         self.square_item = self.source_canvas.create_rectangle(
-            0, 0, 0, 0, outline=SQUARE_COLOR, width=SQUARE_WIDTH, state="hidden"
+            0,
+            0,
+            0,
+            0,
+            outline=SQUARE_COLOR,
+            width=SQUARE_WIDTH,
+            state="hidden",
+            tags="square",
         )
+        self.handle_items = {
+            corner: self.source_canvas.create_rectangle(
+                0, 0, 0, 0, fill=SQUARE_COLOR, outline="", state="hidden", tags="square"
+            )
+            for corner in CORNER_DIRECTIONS
+        }
         self.source_canvas.bind("<Configure>", self._on_canvas_resize)
         self.source_canvas.bind("<ButtonPress-1>", self._on_press)
         self.source_canvas.bind("<B1-Motion>", self._on_drag)
@@ -157,7 +184,7 @@ class CutterApp:
             self.display_frames = []
             self.result_frames = []
             self.source_canvas.itemconfigure(self.source_item, image="")
-            self.source_canvas.itemconfigure(self.square_item, state="hidden")
+            self.source_canvas.itemconfigure("square", state="hidden")
             self.result_canvas.itemconfigure(self.result_item, image="")
             self.source_label.configure(text=f"Cannot open {path.name}: {error}")
             self.result_label.configure(text="Result (64x64)")
@@ -210,48 +237,89 @@ class CutterApp:
         left, top, side = self.square
         return left <= sx < left + side and top <= sy < top + side
 
+    def _square_on_screen(self) -> tuple[float, float, float]:
+        """The square in canvas pixels: left, top, side."""
+        # Same factor on both axes, since the picture keeps its ratio.
+        scale = self.display_size[0] / self.media.size[0]
+        left, top, side = self.square
+        return (
+            self.display_offset[0] + left * scale,
+            self.display_offset[1] + top * scale,
+            side * scale,
+        )
+
+    def _corner_at(self, x: float, y: float) -> str | None:
+        if self.media is None or self.square is None or not self.display_frames:
+            return None
+        x0, y0, side = self._square_on_screen()
+        # On a tiny square the corners would cover it all; keep its middle
+        # free for moving.
+        reach = min(HANDLE_SIZE, side / 4)
+        for corner, (dx, dy) in CORNER_DIRECTIONS.items():
+            cx = x0 + side if dx > 0 else x0
+            cy = y0 + side if dy > 0 else y0
+            if abs(x - cx) <= reach and abs(y - cy) <= reach:
+                return corner
+        return None
+
     def _on_hover(self, event: tk.Event) -> None:
-        cursor = "fleur" if self._inside_square(event.x, event.y) else ""
+        corner = self._corner_at(event.x, event.y)
+        if corner is not None:
+            cursor = CORNER_CURSORS[corner]
+        elif self._inside_square(event.x, event.y):
+            cursor = "fleur"
+        else:
+            cursor = ""
         self.source_canvas.configure(cursor=cursor)
 
     def _on_press(self, event: tk.Event) -> None:
-        if not self._inside_square(event.x, event.y):
-            return
-        sx, sy = self._to_source(event.x, event.y)
-        self.drag_grab = (sx - self.square[0], sy - self.square[1])
+        # Corners first: they sit on the edge of the square.
+        corner = self._corner_at(event.x, event.y)
+        if corner is not None:
+            self.drag_mode = corner
+        elif self._inside_square(event.x, event.y):
+            sx, sy = self._to_source(event.x, event.y)
+            self.drag_grab = (sx - self.square[0], sy - self.square[1])
+            self.drag_mode = "move"
 
     def _on_drag(self, event: tk.Event) -> None:
-        if self.drag_grab is None or self.media is None or self.square is None:
+        if self.drag_mode is None or self.media is None or self.square is None:
             return
         sx, sy = self._to_source(event.x, event.y)
-        moved = move_square(
-            self.square,
-            round(sx - self.drag_grab[0]),
-            round(sy - self.drag_grab[1]),
-            self.media.size,
-        )
-        if moved != self.square:
-            self.square = moved
+        if self.drag_mode == "move":
+            changed = move_square(
+                self.square,
+                round(sx - self.drag_grab[0]),
+                round(sy - self.drag_grab[1]),
+                self.media.size,
+            )
+        else:
+            changed = resize_square(
+                self.square, self.drag_mode, sx, sy, self.media.size
+            )
+        if changed != self.square:
+            self.square = changed
             self._draw_square()
             self._update_result()
 
     def _on_release(self, _event: tk.Event) -> None:
-        self.drag_grab = None
+        self.drag_mode = None
 
     def _draw_square(self) -> None:
         """Place the red square over the displayed picture."""
         if self.media is None or self.square is None:
             return
-        # Same factor on both axes, since the picture keeps its ratio.
-        scale = self.display_size[0] / self.media.size[0]
-        left, top, side = self.square
-        x0 = self.display_offset[0] + left * scale
-        y0 = self.display_offset[1] + top * scale
-        self.source_canvas.coords(
-            self.square_item, x0, y0, x0 + side * scale, y0 + side * scale
-        )
-        self.source_canvas.itemconfigure(self.square_item, state="normal")
-        self.source_canvas.tag_raise(self.square_item)
+        x0, y0, side = self._square_on_screen()
+        self.source_canvas.coords(self.square_item, x0, y0, x0 + side, y0 + side)
+        half = min(HANDLE_SIZE, side / 4) / 2
+        for corner, (dx, dy) in CORNER_DIRECTIONS.items():
+            cx = x0 + side if dx > 0 else x0
+            cy = y0 + side if dy > 0 else y0
+            self.source_canvas.coords(
+                self.handle_items[corner], cx - half, cy - half, cx + half, cy + half
+            )
+        self.source_canvas.itemconfigure("square", state="normal")
+        self.source_canvas.tag_raise("square")
 
     def _on_canvas_resize(self, _event: tk.Event) -> None:
         if self.resize_job is not None:

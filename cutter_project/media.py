@@ -16,6 +16,11 @@ GIF_SUFFIXES = {".gif"}
 
 Square = tuple[int, int, int]  # left, top, side, in source pixels
 
+# Smallest square the user can make: below this the result is mostly blur.
+MIN_SIDE = 8
+# For each corner: which way it points (x, y). The opposite corner stays put.
+CORNER_DIRECTIONS = {"nw": (-1, -1), "ne": (1, -1), "sw": (-1, 1), "se": (1, 1)}
+
 
 @dataclass
 class Media:
@@ -82,3 +87,33 @@ def move_square(square: Square, left: int, top: int, size: tuple[int, int]) -> S
     side = square[2]
     w, h = size
     return min(max(0, left), w - side), min(max(0, top), h - side), side
+
+
+def resize_square(
+    square: Square,
+    corner: str,
+    x: float,
+    y: float,
+    size: tuple[int, int],
+    min_side: int = MIN_SIDE,
+) -> Square:
+    """Square with `corner` dragged to source point (x, y).
+
+    The opposite corner is the anchor and does not move. The side follows
+    whichever of x or y is further out, so the square stays a square and the
+    dragged corner is never behind the mouse.
+    """
+    left, top, side = square
+    w, h = size
+    dx, dy = CORNER_DIRECTIONS[corner]
+    anchor_x = left + side if dx < 0 else left
+    anchor_y = top + side if dy < 0 else top
+    # Room between the anchor and the image border, towards the dragged corner.
+    room_x = anchor_x if dx < 0 else w - anchor_x
+    room_y = anchor_y if dy < 0 else h - anchor_y
+    max_side = min(room_x, room_y)
+    wanted = max((x - anchor_x) * dx, (y - anchor_y) * dy)
+    new_side = round(min(max(wanted, min(min_side, max_side)), max_side))
+    new_left = anchor_x - new_side if dx < 0 else anchor_x
+    new_top = anchor_y - new_side if dy < 0 else anchor_y
+    return new_left, new_top, new_side
