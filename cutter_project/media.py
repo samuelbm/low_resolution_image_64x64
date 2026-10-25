@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image, ImageSequence
+from resize_to_64x64 import SIZE, to_rgb_on_black
 
 # Browsers show GIF frames with a delay under 20 ms (often written as 0) at
 # 100 ms; doing the same keeps such GIFs at the speed people know them by.
@@ -12,6 +13,8 @@ DEFAULT_FRAME_MS = 100
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 GIF_SUFFIXES = {".gif"}
+
+Square = tuple[int, int, int]  # left, top, side, in source pixels
 
 
 @dataclass
@@ -56,3 +59,19 @@ def fit_size(size: tuple[int, int], box: tuple[int, int]) -> tuple[int, int]:
     w, h = size
     scale = min(box[0] / w, box[1] / h)
     return max(1, round(w * scale)), max(1, round(h * scale))
+
+
+def centered_square(size: tuple[int, int], side: int = SIZE) -> Square:
+    """Square of `side` source pixels in the middle, shrunk if the image is smaller."""
+    w, h = size
+    side = min(side, w, h)
+    return (w - side) // 2, (h - side) // 2, side
+
+
+def crop_result(frame: Image.Image, square: Square) -> Image.Image:
+    """What the panel gets: the square, on black, scaled to 64x64 RGB."""
+    left, top, side = square
+    crop = frame.crop((left, top, left + side, top + side))
+    # Same steps and filter as resize_to_64x64.py, so preview and saved file
+    # match. A 64-pixel square is passed through unchanged.
+    return to_rgb_on_black(crop).resize((SIZE, SIZE), Image.Resampling.LANCZOS)
