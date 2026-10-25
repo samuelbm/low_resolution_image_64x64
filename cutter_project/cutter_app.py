@@ -18,6 +18,7 @@ from media import (
     fit_size,
     list_files,
     load_media,
+    move_square,
 )
 from PIL import Image, ImageTk
 
@@ -47,8 +48,14 @@ class CutterApp:
         self.media: Media | None = None
         # Tk only shows a PhotoImage while Python holds a reference to it.
         self.display_frames: list[ImageTk.PhotoImage] = []
-        self.result_frames: list[ImageTk.PhotoImage] = []
+        # Filled frame by frame when shown: while dragging, only the visible
+        # frame is recomputed instead of every frame of a long GIF.
+        self.result_frames: list[ImageTk.PhotoImage | None] = []
         self.square: Square | None = None
+        self.display_offset = (0, 0)
+        self.display_size = (1, 1)
+        # Where inside the square the mouse grabbed it, in source pixels.
+        self.drag_grab: tuple[float, float] | None = None
         self.frame_index = 0
         self.animation_job: str | None = None
         self.resize_job: str | None = None
@@ -94,6 +101,10 @@ class CutterApp:
             0, 0, 0, 0, outline=SQUARE_COLOR, width=SQUARE_WIDTH, state="hidden"
         )
         self.source_canvas.bind("<Configure>", self._on_canvas_resize)
+        self.source_canvas.bind("<ButtonPress-1>", self._on_press)
+        self.source_canvas.bind("<B1-Motion>", self._on_drag)
+        self.source_canvas.bind("<ButtonRelease-1>", self._on_release)
+        self.source_canvas.bind("<Motion>", self._on_hover)
 
     def _build_result_pane(self) -> None:
         pane = ttk.Frame(self.root, padding=8)
@@ -161,22 +172,71 @@ class CutterApp:
         self._rescale()
 
     def _update_result(self) -> None:
-        """Recompute the 64x64 result of every frame for the current square."""
+        """Forget the old result after the square changed, and show the new one."""
         if self.media is None or self.square is None:
             return
-        self.result_frames = [
-            # NEAREST: each result pixel becomes a sharp block, like an LED.
-            ImageTk.PhotoImage(
-                crop_result(frame, self.square).resize(
-                    (PREVIEW_SIZE, PREVIEW_SIZE), Image.Resampling.NEAREST
-                )
-            )
-            for frame in self.media.frames
-        ]
+        self.result_frames = [None] * len(self.media.frames)
         left, top, side = self.square
         self.result_label.configure(
             text=f"Result (64x64): {side}x{side} px at ({left}, {top})"
         )
+        self._show_result_frame()
+
+    def _show_result_frame(self) -> None:
+        if self.media is None or self.square is None:
+            return
+        i = self.frame_index
+        if i >= len(self.result_frames):
+            return
+        if self.result_frames[i] is None:
+            # NEAREST: each result pixel becomes a sharp block, like an LED.
+            preview = crop_result(self.media.frames[i], self.square).resize(
+                (PREVIEW_SIZE, PREVIEW_SIZE), Image.Resampling.NEAREST
+            )
+            self.result_frames[i] = ImageTk.PhotoImage(preview)
+        self.result_canvas.itemconfigure(self.result_item, image=self.result_frames[i])
+
+    def _to_source(self, x: float, y: float) -> tuple[float, float]:
+        """Canvas position -> source pixel position."""
+        scale = self.display_size[0] / self.media.size[0]
+        return (x - self.display_offset[0]) / scale, (
+            y - self.display_offset[1]
+        ) / scale
+
+    def _inside_square(self, x: float, y: float) -> bool:
+        if self.media is None or self.square is None or not self.display_frames:
+            return False
+        sx, sy = self._to_source(x, y)
+        left, top, side = self.square
+        return left <= sx < left + side and top <= sy < top + side
+
+    def _on_hover(self, event: tk.Event) -> None:
+        cursor = "fleur" if self._inside_square(event.x, event.y) else ""
+        self.source_canvas.configure(cursor=cursor)
+
+    def _on_press(self, event: tk.Event) -> None:
+        if not self._inside_square(event.x, event.y):
+            return
+        sx, sy = self._to_source(event.x, event.y)
+        self.drag_grab = (sx - self.square[0], sy - self.square[1])
+
+    def _on_drag(self, event: tk.Event) -> None:
+        if self.drag_grab is None or self.media is None or self.square is None:
+            return
+        sx, sy = self._to_source(event.x, event.y)
+        moved = move_square(
+            self.square,
+            round(sx - self.drag_grab[0]),
+            round(sy - self.drag_grab[1]),
+            self.media.size,
+        )
+        if moved != self.square:
+            self.square = moved
+            self._draw_square()
+            self._update_result()
+
+    def _on_release(self, _event: tk.Event) -> None:
+        self.drag_grab = None
 
     def _draw_square(self) -> None:
         """Place the red square over the displayed picture."""
@@ -230,10 +290,7 @@ class CutterApp:
             self.source_item, image=self.display_frames[self.frame_index]
         )
         # Both panes show the same frame, so the result plays in step.
-        if self.frame_index < len(self.result_frames):
-            self.result_canvas.itemconfigure(
-                self.result_item, image=self.result_frames[self.frame_index]
-            )
+        self._show_result_frame()
         if self.media is not None and self.media.is_animated:
             delay = self.media.durations_ms[self.frame_index]
             self.animation_job = self.root.after(delay, self._next_frame)

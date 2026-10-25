@@ -75,3 +75,10 @@ def crop_result(frame: Image.Image, square: Square) -> Image.Image:
     # Same steps and filter as resize_to_64x64.py, so preview and saved file
     # match. A 64-pixel square is passed through unchanged.
     return to_rgb_on_black(crop).resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+
+
+def move_square(square: Square, left: int, top: int, size: tuple[int, int]) -> Square:
+    """Square moved to (left, top), pushed back inside the image if needed."""
+    side = square[2]
+    w, h = size
+    return min(max(0, left), w - side), min(max(0, top), h - side), side

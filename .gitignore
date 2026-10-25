@@ -178,3 +178,6 @@ files/**/*.svg
 *.webp
 *.tif
 *.tiff
+
+### Python ###
+__pycache__/
