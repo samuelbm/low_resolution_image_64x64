@@ -184,3 +184,6 @@ __pycache__/
 
 ### Display selection: lives only on the Pi Zero 2W (D-014) ###
 object_files/selection.txt
+
+### Display service settings: live only on the Pi Zero 2W (D-016) ###
+loop.env
