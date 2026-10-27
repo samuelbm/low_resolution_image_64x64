@@ -68,6 +68,52 @@ in the uv-managed Python) and Pillow. Nothing of this runs on the Pis.
 
 Status: being built step by step, see ROADMAP.md, Iteration 3.
 
+Display service: play a folder at boot (Pi Zero 2W)
+---------------------------------------------------
+
+`systemd/rgbmatrix-display.service` starts `rgb_led_matrix/loop.py` when the
+Zero powers on and restarts it if it crashes. By default it plays
+`object_files/gifs/halloween`, each file for 0.2 minutes.
+
+**Change the folder or the time** (no sudo needed): create
+`~/low_resolution_image_64x64/loop.env` on the Zero (git-ignored):
+
+```
+LOOP_FOLDER=object_files/gifs/halloween
+LOOP_MINUTES=0.2
+```
+
+then `sudo systemctl restart rgbmatrix-display`. Files added to the folder are
+also picked up only after a restart.
+
+**Everyday commands** (Pi Zero 2W):
+
+```
+systemctl status rgbmatrix-display          # running? last lines of output
+journalctl -u rgbmatrix-display -f          # follow the output (Ctrl+C to quit)
+sudo systemctl stop rgbmatrix-display       # stop until the next start or boot
+sudo systemctl start rgbmatrix-display
+sudo systemctl restart rgbmatrix-display    # after changing loop.env or files
+sudo systemctl disable rgbmatrix-display    # do not start at boot any more
+```
+
+While the service runs, the panel is taken: stop it before running
+`show_image.py`, `show_gif.py` or `loop.py` by hand.
+
+**Install, and after every git pull that changes the .service file**
+(Pi Zero 2W, from the repo root):
+
+```
+scripts/install_on_zero.sh
+```
+
+It copies the system files kept in the repo to where the Zero reads them
+(systemd never reads from the repo), reloads systemd, enables the service at
+boot, restarts it and shows its status. Asks for the sudo password. Other
+system files added later go in the same script.
+
+Still shut down with `sudo shutdown -h now` before pulling the plug.
+
 ---
 
 Controlling RGB LED display with Raspberry Pi GPIO

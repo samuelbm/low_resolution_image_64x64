@@ -216,3 +216,18 @@ A native phone app: much more work, an app store or sideloading, for the same re
 Control through the Pi 4 server only: the panel would stop being controllable whenever the Pi 4 is off.
 
 Consequences: The web server must stay light (the panel refresh uses a full core on the Zero). Any library it needs must have a ready-made wheel or go through the Pi 4 (D-002). Where the panel is used away from home is still open: it decides how the phone reaches the Zero (home Wi-Fi, phone hotspot, or the Zero as its own access point).
+
+D-016: The boot service runs loop.py, settings in loop.env
+
+Status: Accepted (2026-10-26). Changes D-013 (the service runs loop.py, not play_selection.py, for now).
+
+Context: The user wants the Zero to play a folder at power-up, e.g. object_files/gifs/halloween at 0.2 minutes per file, and asked whether a .sh script could hold that command.
+
+Decision: systemd/rgbmatrix-display.service runs loop.py directly with ${LOOP_FOLDER} and ${LOOP_MINUTES}. Defaults are in the unit; ~/low_resolution_image_64x64/loop.env (git-ignored, Zero only) overrides them. KillSignal=SIGINT so a stop acts like Ctrl+C and the panel is cleared.
+
+Alternatives:
+
+A .sh script started by the unit: one more file, and it runs as root, so anything written in it would run as root (same reason as D-014). loop.env is read by systemd as plain KEY=value data, never executed.
+Arguments written only in the unit: every change needs sudo, cp and daemon-reload.
+
+Consequences: Changing the folder or time = edit loop.env + restart the service. When the phone control comes (D-015) it can write loop.env (or a selection) and restart the service. play_selection.py (Iteration 4) is not needed for now.

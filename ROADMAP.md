@@ -9,6 +9,8 @@ In progress
 
 To do
  [ ] Step 2 (user, Zero): git pull, then sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/loop.py object_files/gifs 0.5 from the repo root. Check the switches are clean and the GIFs keep their speed.
+ [~] Step 3 (Claude): systemd/rgbmatrix-display.service starts loop.py at boot (default object_files/gifs/halloween, 0.2 min), settings overridable in ~/low_resolution_image_64x64/loop.env (D-016). README "Display service". Written, waiting for review and commit.
+ [ ] Step 4 (user, Zero): after step 2 works by hand, install the service with scripts/install_on_zero.sh (copies systemd files to /etc, daemon-reload, enable, restart; future system files go in it too), reboot, check the panel starts by itself.
  [ ] Next steps to decide together: where the panel is used (home Wi-Fi only or elsewhere), which controls come first (tap to show, playlists, brightness, shutdown), standard library or a small framework for the web server.
 
 Notes
