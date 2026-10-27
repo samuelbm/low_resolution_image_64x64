@@ -201,3 +201,18 @@ Path relative to object_files/ (gifs/...): shorter, but differs from the paths t
 Editing on the host and syncing: the host copy would overwrite edits made on the Zero.
 
 Consequences: The selection is not backed up by git. Later it can grow into a playlist (one path per line) or take options without changing the file name.
+
+D-015: Control the panel from the phone through a web page served by the Zero
+
+Status: Proposed (2026-10-26)
+
+Context: The user wants more control than one fixed selection: choose what plays from the phone, and shut the Zero down safely without pulling the plug (SD card died on 2026-10-20). A home server on the Pi 4 exists, reachable on the local network only.
+
+Decision: The Zero serves a small web page (opened in the phone's browser, no app to install). The page does not drive the panel itself: it writes what to play (selection.txt, later a playlist) and the player shows it (D-014). A Shut down button runs only the shutdown command, through a sudo rule; the web server does not run as root. The Pi 4 may later give it a name or host the image library, but the Zero must keep working without it. MVP first: rgb_led_matrix/loop.py plays a folder in turn from the command line.
+
+Alternatives:
+
+A native phone app: much more work, an app store or sideloading, for the same result.
+Control through the Pi 4 server only: the panel would stop being controllable whenever the Pi 4 is off.
+
+Consequences: The web server must stay light (the panel refresh uses a full core on the Zero). Any library it needs must have a ready-made wheel or go through the Pi 4 (D-002). Where the panel is used away from home is still open: it decides how the phone reaches the Zero (home Wi-Fi, phone hotspot, or the Zero as its own access point).

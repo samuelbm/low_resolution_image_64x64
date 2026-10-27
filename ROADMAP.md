@@ -1,5 +1,20 @@
 Living plan. Updated at the end of every work session. Status: [ ] to do, [~] in progress, [x] done.
 
+Iteration 5: Folder loop, then control from the phone (current)
+
+Goal: an MVP first: play a whole folder of images/GIFs in turn on the Zero. Later: a small web page served by the Zero, opened in the phone's browser, to choose what plays and to shut the Zero down safely (D-015). Iteration 4's player and systemd service are still wanted and will run this.
+
+In progress
+ [~] Step 1 (Claude): rgb_led_matrix/loop.py folder_path duration_minutes: every 64x64 PNG/JPG/BMP/GIF of the folder in name order, each for duration_minutes (decimals allowed, GIFs loop until the time is up), then back to the first. Bad files are skipped with a message. -h explains the parameters. Tested on the host with a fake library; waiting for review, commit and a test on the Zero.
+
+To do
+ [ ] Step 2 (user, Zero): git pull, then sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/loop.py object_files/gifs 0.5 from the repo root. Check the switches are clean and the GIFs keep their speed.
+ [ ] Next steps to decide together: where the panel is used (home Wi-Fi only or elsewhere), which controls come first (tap to show, playlists, brightness, shutdown), standard library or a small framework for the web server.
+
+Notes
+ loop.py loads every file at startup, before the library drops root; files added to the folder are seen after a restart.
+ Canvases are reused between items: the library never frees a canvas, so creating new ones per item would leak memory over a long run.
+
 Iteration 4: Show the selection at boot (Pi Zero 2W)
 
 Goal: when the Zero powers on, the panel shows what object_files/selection.txt names, with no SSH needed. Changing the selection over SSH switches the panel within about a second. A systemd service starts the player at boot and restarts it after a crash, unless stopped (D-013, D-014). Built one step at a time; after each step Claude stops, the user reviews and commits (D-008).
