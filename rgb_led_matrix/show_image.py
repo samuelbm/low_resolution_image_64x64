@@ -18,7 +18,7 @@ def load_image(path: Path) -> Image.Image:
     # Refuse instead of resizing here: the Zero should only display, and a
     # silent resize would hide that the wrong file was passed.
     if img.size != (COLS, ROWS):
-        raise SystemExit(
+        raise ValueError(
             f"{path} is {img.size[0]}x{img.size[1]}, expected {COLS}x{ROWS}"
         )
     return img
@@ -29,7 +29,10 @@ def main() -> None:
     parser.add_argument("image", type=Path, help="path to a 64x64 image")
     args = parser.parse_args()
 
-    img = load_image(args.image)
+    try:
+        img = load_image(args.image)
+    except ValueError as error:
+        raise SystemExit(error) from None
     matrix = create_matrix()
     try:
         matrix.SetImage(img)

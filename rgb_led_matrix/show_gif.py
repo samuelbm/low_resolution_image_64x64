@@ -25,7 +25,7 @@ def load_gif(path: Path) -> list[tuple[Image.Image, float]]:
         if gif.size != (COLS, ROWS):
             # Refuse instead of resizing: the Zero only displays, and a silent
             # resize would hide that the wrong file was passed.
-            raise SystemExit(
+            raise ValueError(
                 f"{path} is {gif.size[0]}x{gif.size[1]}, expected {COLS}x{ROWS}"
             )
         for frame in ImageSequence.Iterator(gif):
@@ -41,7 +41,10 @@ def main() -> None:
     parser.add_argument("gif", type=Path, help="path to a 64x64 GIF")
     args = parser.parse_args()
 
-    frames = load_gif(args.gif)
+    try:
+        frames = load_gif(args.gif)
+    except ValueError as error:
+        raise SystemExit(error) from None
     matrix = create_matrix()
     # Convert every frame into its own canvas once, up front. In the loop the
     # library then only switches canvases: no per-frame pixel work competes
