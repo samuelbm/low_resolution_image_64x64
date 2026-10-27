@@ -231,3 +231,18 @@ A .sh script started by the unit: one more file, and it runs as root, so anythin
 Arguments written only in the unit: every change needs sudo, cp and daemon-reload.
 
 Consequences: Changing the folder or time = edit loop.env + restart the service. When the phone control comes (D-015) it can write loop.env (or a selection) and restart the service. play_selection.py (Iteration 4) is not needed for now.
+
+D-017: Shutdown push button on GPIO3, normally closed, active_low=0
+
+Status: Accepted (2026-10-27)
+
+Context: The Zero now starts the display at boot (D-016) and will often be unplugged without SSH. Pulling the power while the OS writes killed an SD card (2026-10-20). A shutdown button was in the Later list.
+
+Decision: A push button is soldered between pin 5 (GPIO3) and pin 6 (GND) on the underside of the Zero. GPIO3 is free with adafruit-hat-pwm (checked in lib/hardware-mapping.c: the mapping uses GPIO 5, 6, 12, 13, 16, 17, 18, 20-24, 26, 27, plus GPIO4 through the D-010 wire). The button is normally closed, so /boot/firmware/config.txt has dtoverlay=gpio-shutdown,active_low=0 (shutdown when the pin goes high, i.e. when pushed). Backup before the change: /boot/firmware/config.txt.bak-shutdown.
+
+Alternatives:
+
+Normally open button with plain dtoverlay=gpio-shutdown: the standard setup, and the same button then also powers the halted Zero back up. Not what was soldered; still the fix if the NC button causes trouble.
+Shutdown only over SSH: needs a laptop or phone every time, so the plug gets pulled instead.
+
+Consequences: Wait until the green LED is off before unplugging. With an NC button GPIO3 is held low at rest, which is also the Pi's power-up signal, so a halted Zero may start again by itself; if so, hold the button until the LED is off, or swap to a normally open button. I2C (GPIO2/3) cannot be used while the button is there.

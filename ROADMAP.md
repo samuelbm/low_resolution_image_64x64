@@ -11,6 +11,7 @@ To do
  [ ] Step 2 (user, Zero): git pull, then sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/loop.py object_files/gifs 0.5 from the repo root. Check the switches are clean and the GIFs keep their speed.
  [~] Step 3 (Claude): systemd/rgbmatrix-display.service starts loop.py at boot (default object_files/gifs/halloween, 0.2 min), settings overridable in ~/low_resolution_image_64x64/loop.env (D-016). README "Display service". Written, waiting for review and commit.
  [ ] Step 4 (user, Zero): after step 2 works by hand, install the service with scripts/install_on_zero.sh (copies systemd files to /etc, daemon-reload, enable, restart; future system files go in it too), reboot, check the panel starts by itself.
+ [x] Step 5 (user, Zero): shutdown button between pin 5 (GPIO3) and pin 6 (GND), soldered 2026-10-27. Normally closed (NC) button, so /boot/firmware/config.txt ends with dtoverlay=gpio-shutdown,active_low=0 under [all] (D-017). Pressing it shut the Zero down (2026-10-27). Still to confirm: it stays off after release (GPIO3 low also powers a halted Pi up).
  [ ] Next steps to decide together: where the panel is used (home Wi-Fi only or elsewhere), which controls come first (tap to show, playlists, brightness, shutdown), standard library or a small framework for the web server.
 
 Notes
@@ -91,7 +92,6 @@ To do
  [ ] Clean the two staged image_resolution_analyzer/ entries (files no longer exist).
 
 Later (not planned yet)
- Shutdown push button on GPIO3 (pin 5) to GND with dtoverlay=gpio-shutdown, so the Zero never has to be unplugged hard. GPIO3 is not used by the adafruit-hat mapping (checked in lib/hardware-mapping.c); recheck for adafruit-hat-pwm.
  Read-only root file system (raspi-config overlay FS) once the app is stable, to protect the SD card from power cuts.
  Start the display automatically at boot (systemd service).
  Show text.
