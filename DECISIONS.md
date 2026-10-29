@@ -261,3 +261,19 @@ One variable per option in the unit (LOOP_FOLDER, LOOP_PLAYS, ...): every new lo
 Keep duration_minutes next to --plays: two ways to say how long a file stays; not needed now.
 
 Consequences: Defaults live in loop.py, so a git pull + reboot picks up new behaviour. Only changes to files in systemd/ need scripts/install_on_zero.sh. A loop.env with the old LOOP_FOLDER/LOOP_MINUTES lines is ignored. Folder paths in LOOP_ARGS cannot contain spaces.
+
+D-019: A new display program stops the one already driving the panel
+
+Status: Accepted (2026-10-28)
+
+Context: On 2026-10-28 loop.py was started by hand while the display service was running its own loop.py. Two programs drove the same GPIO pins: the pictures were mixed, the two real-time refresh threads starved the Zero (SSH lost, the shutdown button had no effect) and the Zero had to be powered off hard. The user asked that starting a new instance close the old one.
+
+Decision: create_matrix() in matrix_config.py first calls take_panel() (rgb_led_matrix/panel_lock.py), so every display script is covered. It takes an exclusive flock on /run/rgbmatrix-panel.lock, which holds the pid of the program using the panel. If the lock is taken: when that program belongs to rgbmatrix-display.service, it runs systemctl stop on the service (a plain signal would be undone by Restart=always 5 s later); otherwise it sends SIGINT (same as Ctrl+C, so the old program clears the panel) and, if it still holds the lock after 10 s, SIGKILL. The new program then writes its own pid and keeps the lock until it exits.
+
+Alternatives:
+
+Refuse to start while the panel is in use: safe, but the user asked for the new program to win.
+Find old programs by name (pgrep loop.py): misses other scripts and can hit unrelated processes; the lock names exactly the program that holds the panel.
+A lock file in the repo or /tmp: survives a power cut or is shared with other users; /run is in RAM and empty at every boot.
+
+Consequences: Running a script by hand stops the service until "sudo systemctl start rgbmatrix-display" or a reboot. Scripts must be run with sudo (the lock is in /run); without it they stop with a clear message. A program that does not use create_matrix() (e.g. the library samples) is not covered.

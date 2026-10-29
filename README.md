@@ -103,8 +103,12 @@ sudo systemctl restart rgbmatrix-display    # after changing loop.env or files
 sudo systemctl disable rgbmatrix-display    # do not start at boot any more
 ```
 
-While the service runs, the panel is taken: stop it before running
-`show_image.py`, `show_gif.py` or `loop.py` by hand.
+**Only one program drives the panel at a time.** Starting any display script
+(`loop.py`, `show_image.py`, `show_gif.py`, `diagonal_wave*.py`) stops the one
+already running, so pictures never mix. If that one is the display service,
+the service is stopped and stays stopped until
+`sudo systemctl start rgbmatrix-display` or the next boot. To stop a script
+started by hand: Ctrl+C in its terminal.
 
 **Install, and after every git pull that changes the .service file**
 (Pi Zero 2W, from the repo root):

@@ -1,5 +1,6 @@
 """Single place for the matrix settings (CLAUDE.md §5)."""
 
+from panel_lock import take_panel
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
 ROWS = 64
@@ -25,6 +26,8 @@ def create_matrix(
     pwm_bits: int = PWM_BITS,
     pwm_lsb_nanoseconds: int = PWM_LSB_NANOSECONDS,
 ) -> RGBMatrix:
+    # Before the library opens the GPIO: the old program must have let go.
+    take_panel()
     options = RGBMatrixOptions()
     options.rows = ROWS
     options.cols = COLS
