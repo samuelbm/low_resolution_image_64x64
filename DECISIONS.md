@@ -246,3 +246,18 @@ Normally open button with plain dtoverlay=gpio-shutdown: the standard setup, and
 Shutdown only over SSH: needs a laptop or phone every time, so the plug gets pulled instead.
 
 Consequences: Wait until the green LED is off before unplugging. With an NC button GPIO3 is held low at rest, which is also the Pi's power-up signal, so a halted Zero may start again by itself; if so, hold the button until the LED is off, or swap to a normally open button. I2C (GPIO2/3) cannot be used while the button is there.
+
+D-018: loop.py plays each GIF a number of times; the service passes LOOP_ARGS
+
+Status: Accepted (2026-10-28). Supersedes D-016 on how the service gets its settings.
+
+Context: With many GIFs of different lengths, one fixed time per file (duration_minutes) cuts long GIFs and repeats short ones many times. The user wants each animation to play twice, then the next one, and wants code updates to work with git pull + reboot.
+
+Decision: loop.py folder_path [--plays N] [--image-seconds S]: each GIF plays N times (default 2), each still image (or one-frame GIF) stays S seconds (default 10). The unit runs loop.py $LOOP_ARGS: one setting holds all arguments, default LOOP_ARGS=object_files/gifs/halloween, and ~/low_resolution_image_64x64/loop.env can override it. systemd splits $VAR (without braces) into separate arguments.
+
+Alternatives:
+
+One variable per option in the unit (LOOP_FOLDER, LOOP_PLAYS, ...): every new loop.py option would change the unit, and a unit change needs scripts/install_on_zero.sh, not only a pull.
+Keep duration_minutes next to --plays: two ways to say how long a file stays; not needed now.
+
+Consequences: Defaults live in loop.py, so a git pull + reboot picks up new behaviour. Only changes to files in systemd/ need scripts/install_on_zero.sh. A loop.env with the old LOOP_FOLDER/LOOP_MINUTES lines is ignored. Folder paths in LOOP_ARGS cannot contain spaces.

@@ -12,6 +12,7 @@ To do
  [~] Step 3 (Claude): systemd/rgbmatrix-display.service starts loop.py at boot (default object_files/gifs/halloween, 0.2 min), settings overridable in ~/low_resolution_image_64x64/loop.env (D-016). README "Display service". Written, waiting for review and commit.
  [ ] Step 4 (user, Zero): after step 2 works by hand, install the service with scripts/install_on_zero.sh (copies systemd files to /etc, daemon-reload, enable, restart; future system files go in it too), reboot, check the panel starts by itself.
  [x] Step 5 (user, Zero): shutdown button between pin 5 (GPIO3) and pin 6 (GND), soldered 2026-10-27. Normally closed (NC) button, so /boot/firmware/config.txt ends with dtoverlay=gpio-shutdown,active_low=0 under [all] (D-017). Pressing it shut the Zero down (2026-10-27). Still to confirm: it stays off after release (GPIO3 low also powers a halted Pi up).
+ [~] Step 6 (Claude): loop.py plays each GIF --plays times (default 2) and each still image --image-seconds (default 10) instead of a fixed time per file; folder_path stays. The service passes all arguments through one setting, LOOP_ARGS (loop.env overrides it), so later loop.py changes need only git pull + reboot (D-018). Tested on the host with a fake library. To do on the Zero once: git pull, scripts/install_on_zero.sh (the unit changed); then reboot and check.
  [ ] Next steps to decide together: where the panel is used (home Wi-Fi only or elsewhere), which controls come first (tap to show, playlists, brightness, shutdown), standard library or a small framework for the web server.
 
 Notes

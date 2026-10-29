@@ -73,18 +73,24 @@ Display service: play a folder at boot (Pi Zero 2W)
 
 `systemd/rgbmatrix-display.service` starts `rgb_led_matrix/loop.py` when the
 Zero powers on and restarts it if it crashes. By default it plays
-`object_files/gifs/halloween`, each file for 0.2 minutes.
+`object_files/gifs/halloween`: each GIF twice, each still image 10 seconds,
+then the next file, in name order, forever.
 
-**Change the folder or the time** (no sudo needed): create
-`~/low_resolution_image_64x64/loop.env` on the Zero (git-ignored):
+**Change what plays** (no sudo needed): create
+`~/low_resolution_image_64x64/loop.env` on the Zero (git-ignored) with one
+line holding the arguments of `loop.py` (see `loop.py -h`):
 
 ```
-LOOP_FOLDER=object_files/gifs/halloween
-LOOP_MINUTES=0.2
+LOOP_ARGS=object_files/gifs/halloween --plays 3 --image-seconds 20
 ```
 
-then `sudo systemctl restart rgbmatrix-display`. Files added to the folder are
-also picked up only after a restart.
+then `sudo systemctl restart rgbmatrix-display` (or reboot). Files added to
+the folder are also picked up only after a restart. Folder names must not
+contain spaces.
+
+**Update the code:** `git pull`, then reboot or
+`sudo systemctl restart rgbmatrix-display`. Only when the pull changed a file
+in `systemd/`, run `scripts/install_on_zero.sh` instead (see below).
 
 **Everyday commands** (Pi Zero 2W):
 

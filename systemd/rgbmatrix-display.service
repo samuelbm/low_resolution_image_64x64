@@ -1,4 +1,4 @@
-# Plays a folder of 64x64 images/GIFs on the panel at boot (D-013, D-016).
+# Plays a folder of 64x64 images/GIFs on the panel at boot (D-013, D-018).
 # Install on the Pi Zero 2W: see README.md, "Display service".
 [Unit]
 Description=RGB LED matrix: loop over a folder of images and GIFs
@@ -8,10 +8,10 @@ After=local-fs.target
 [Service]
 Type=simple
 WorkingDirectory=/home/admin/low_resolution_image_64x64
-# Defaults; loop.env (git-ignored, Zero only) overrides them, so the folder
-# and time can change without editing this file or using sudo.
-Environment=LOOP_FOLDER=object_files/gifs/halloween
-Environment=LOOP_MINUTES=0.2
+# All arguments of loop.py in one setting, so new loop.py options never need
+# a change here (only git pull + restart). loop.env (git-ignored, Zero only)
+# overrides it without sudo. Other defaults (plays, image time) are in loop.py.
+Environment=LOOP_ARGS=object_files/gifs/halloween
 EnvironmentFile=-/home/admin/low_resolution_image_64x64/loop.env
 # Runs as root: root-owned __pycache__ folders in the repo would get in the
 # way of later runs and git as admin.
@@ -19,7 +19,8 @@ Environment=PYTHONDONTWRITEBYTECODE=1
 # Show the "showing ..." lines in journalctl as they happen.
 Environment=PYTHONUNBUFFERED=1
 # Root is needed for the GPIO; the library drops it after start-up.
-ExecStart=/home/admin/rgbmatrix/.venv/bin/python rgb_led_matrix/loop.py ${LOOP_FOLDER} ${LOOP_MINUTES}
+# $LOOP_ARGS without braces: systemd splits it into separate arguments.
+ExecStart=/home/admin/rgbmatrix/.venv/bin/python rgb_led_matrix/loop.py $LOOP_ARGS
 # Same as Ctrl+C: loop.py then clears the panel before exiting.
 KillSignal=SIGINT
 Restart=always

@@ -1,7 +1,9 @@
 """Show every 64x64 image and GIF of a folder in turn, in a loop, until Ctrl+C.
 
+Each GIF plays a set number of times, a still image stays a set number of
+seconds, then the next file comes.
 Run on the Pi Zero 2W, from the repo root:
-  sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/loop.py object_files/gifs 2
+  sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/loop.py object_files/gifs
 """
 
 import argparse
@@ -16,16 +18,25 @@ from show_image import load_image
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".bmp"}
 GIF_SUFFIX = ".gif"
+DEFAULT_PLAYS = 2
+DEFAULT_IMAGE_SECONDS = 10.0
 
 # Each frame with how long to show it (s); a still image is one frame.
 Frames = list[tuple[Image.Image, float]]
 
 
-def duration_minutes(text: str) -> float:
-    minutes = float(text)
-    if minutes <= 0:
+def positive_int(text: str) -> int:
+    value = int(text)
+    if value <= 0:
         raise argparse.ArgumentTypeError("must be more than 0")
-    return minutes
+    return value
+
+
+def positive_float(text: str) -> float:
+    value = float(text)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("must be more than 0")
+    return value
 
 
 def load_folder(folder: Path) -> list[tuple[str, Frames]]:
@@ -59,9 +70,12 @@ def play_item(
     pool: list[FrameCanvas],
     shown: int,
     frames: Frames,
-    seconds: float,
+    plays: int,
+    image_seconds: float,
 ) -> int:
-    """Show one item for `seconds`, the GIF looping; return the canvas on screen.
+    """Play a GIF `plays` times, or show a still image for `image_seconds`.
+
+    Returns the index of the canvas left on screen.
 
     Canvases are reused from `pool`: the library never frees a canvas, so
     creating new ones for every item would leak memory over a long run.
@@ -74,35 +88,35 @@ def play_item(
     for i, (image, _) in zip(indexes, frames):
         pool[i].SetImage(image)
 
-    end = time.monotonic() + seconds
+    # A one-frame GIF has nothing to animate: treat it like a still image.
     if len(frames) == 1:
         matrix.SwapOnVSync(pool[indexes[0]])
-        time.sleep(max(0.0, end - time.monotonic()))
+        time.sleep(image_seconds)
         return indexes[0]
 
     # Each frame is due at a fixed time after the previous one, so small
     # delays do not add up and the GIF keeps its speed.
     due = time.monotonic()
-    while True:
+    for _ in range(plays):
         for i, (_, duration) in zip(indexes, frames):
             matrix.SwapOnVSync(pool[i])
             shown = i
             due += duration
-            if due >= end:
-                time.sleep(max(0.0, end - time.monotonic()))
-                return shown
             time.sleep(max(0.0, due - time.monotonic()))
+    return shown
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Show every 64x64 image and GIF of a folder in turn, each for the "
-            "same time, then start again from the first one. Stop with Ctrl+C."
+            "Show every 64x64 image and GIF of a folder in turn: each GIF "
+            "plays a few times, each still image stays a few seconds, then the "
+            "next file comes. After the last file it starts again from the "
+            "first one. Stop with Ctrl+C."
         ),
         epilog=(
             "example: sudo ~/rgbmatrix/.venv/bin/python rgb_led_matrix/loop.py "
-            "object_files/gifs 2   (each file for 2 minutes)"
+            "object_files/gifs/halloween --plays 3"
         ),
     )
     parser.add_argument(
@@ -115,11 +129,18 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "duration_minutes",
-        type=duration_minutes,
+        "--plays",
+        type=positive_int,
+        default=DEFAULT_PLAYS,
+        help=f"how many times each GIF plays in a row (default {DEFAULT_PLAYS})",
+    )
+    parser.add_argument(
+        "--image-seconds",
+        type=positive_float,
+        default=DEFAULT_IMAGE_SECONDS,
         help=(
-            "how long each file stays on the panel, in minutes; decimals "
-            "allowed (0.5 = 30 s). A GIF loops until its time is up."
+            "how long each still image stays, in seconds; decimals allowed "
+            f"(default {DEFAULT_IMAGE_SECONDS:g})"
         ),
     )
     args = parser.parse_args()
@@ -129,9 +150,8 @@ def main() -> None:
     items = load_folder(args.folder_path)
     if not items:
         raise SystemExit(f"nothing to show in {args.folder_path}")
-    print(f"{len(items)} files, {args.duration_minutes} min each")
+    print(f"{len(items)} files: GIFs {args.plays}x, images {args.image_seconds:g} s")
 
-    seconds = args.duration_minutes * 60
     matrix = create_matrix()
     pool: list[FrameCanvas] = []
     shown = -1
@@ -139,7 +159,9 @@ def main() -> None:
         while True:
             for name, frames in items:
                 print(f"showing {name}")
-                shown = play_item(matrix, pool, shown, frames, seconds)
+                shown = play_item(
+                    matrix, pool, shown, frames, args.plays, args.image_seconds
+                )
     except KeyboardInterrupt:
         pass
     finally:
